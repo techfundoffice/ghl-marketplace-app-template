@@ -99,6 +99,7 @@ app.get("/example-api-call-location", async (req: Request, res: Response) => {
 api can be used to subscribe to various webhook events configured for the app. */
 app.post("/example-webhook-handler",async (req: Request, res: Response) => {
     console.log(req.body)
+    res.status(200).json({ message: "Webhook received successfully", data: req.body })
 })
 
 /* Health check endpoint to test connection and configuration */

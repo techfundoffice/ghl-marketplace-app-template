@@ -1,0 +1,163 @@
+<template>
+  <div class="settings-container">
+    <aside class="settings-sidebar">
+      <div class="sidebar-section">
+        <h3 class="section-header">MY BUSINESS</h3>
+        <nav>
+          <router-link to="/settings/business-profile" class="nav-item">Business Profile</router-link>
+          <router-link to="/settings/my-profile" class="nav-item">My Profile</router-link>
+          <router-link to="/settings/billing" class="nav-item">Billing</router-link>
+          <router-link to="/settings/my-staff" class="nav-item">My Staff</router-link>
+          <router-link to="/settings/opportunities-pipelines" class="nav-item">Opportunities & Pipelines</router-link>
+        </nav>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-header">BUSINESS SERVICES</h3>
+        <nav>
+          <router-link to="/settings/automation" class="nav-item">Automation</router-link>
+          <router-link to="/settings/calendars" class="nav-item">Calendars</router-link>
+          <router-link to="/settings/conversation-ai" class="nav-item">
+            Conversation AI
+            <span class="badge">New</span>
+          </router-link>
+          <router-link to="/settings/knowledge-base" class="nav-item">
+            Knowledge Base
+            <span class="badge">New</span>
+          </router-link>
+          <router-link to="/settings/voice-ai-agents" class="nav-item">Voice AI Agents</router-link>
+          <router-link to="/settings/email-services" class="nav-item">Email Services</router-link>
+          <router-link to="/settings/phone-numbers" class="nav-item">Phone Numbers</router-link>
+          <router-link to="/settings/whatsapp" class="nav-item">WhatsApp</router-link>
+        </nav>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-header">OTHER SETTINGS</h3>
+        <nav>
+          <router-link to="/settings/objects" class="nav-item">
+            Objects
+            <span class="badge">New</span>
+          </router-link>
+          <router-link to="/settings/custom-fields" class="nav-item">Custom Fields</router-link>
+          <router-link to="/settings/custom-values" class="nav-item">Custom Values</router-link>
+          <router-link to="/settings/manage-scoring" class="nav-item">Manage Scoring</router-link>
+          <router-link to="/settings/domains-url-redirects" class="nav-item">Domains & URL Redirects</router-link>
+          <router-link to="/settings/integrations" class="nav-item">Integrations</router-link>
+          <router-link to="/settings/private-integrations" class="nav-item">Private Integrations</router-link>
+          <router-link to="/settings/conversation-providers" class="nav-item">Conversation Providers</router-link>
+          <router-link to="/settings/tags" class="nav-item">Tags</router-link>
+          <router-link to="/settings/labs" class="nav-item">
+            Labs
+            <span class="badge">New</span>
+          </router-link>
+          <router-link to="/settings/audit-logs" class="nav-item">Audit Logs</router-link>
+          <router-link to="/settings/brand-boards" class="nav-item">
+            Brand Boards
+            <span class="badge">New</span>
+          </router-link>
+        </nav>
+      </div>
+    </aside>
+
+    <main class="settings-content">
+      <router-view></router-view>
+    </main>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'Settings'
+}
+</script>
+
+<style scoped>
+.settings-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.settings-sidebar {
+  width: 250px;
+  background-color: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding: 24px 0;
+  overflow-y: auto;
+  position: fixed;
+  height: 100vh;
+}
+
+.sidebar-section {
+  margin-bottom: 32px;
+  padding: 0 16px;
+}
+
+.section-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+  padding: 0 8px;
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  margin: 2px 0;
+  color: #374151;
+  text-decoration: none;
+  font-size: 14px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.nav-item.router-link-active {
+  background-color: #dbeafe;
+  color: #1e40af;
+  font-weight: 500;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #10b981;
+  background-color: #d1fae5;
+  border-radius: 12px;
+  margin-left: 8px;
+}
+
+.settings-content {
+  flex: 1;
+  margin-left: 250px;
+  padding: 32px 48px;
+  background-color: #f5f5f5;
+}
+
+@media (max-width: 768px) {
+  .settings-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .settings-content {
+    margin-left: 0;
+    padding: 24px 16px;
+  }
+}
+</style>

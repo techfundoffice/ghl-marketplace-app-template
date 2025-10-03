@@ -179,11 +179,11 @@ app.post("/decrypt-sso",async (req: Request, res: Response) => {
   }
 })
 
-/*`app.get("/", function (req, res) {
+/*`app.get("*", function (req, res) {
   res.sendFile(path + "index.html");
-});` sets up a route for the root URL ("/") of the server.  This is
- used to serve the main HTML file of a web application. */
-app.get("/", function (req, res) {
+});` sets up a catch-all route for SPA routing.
+All routes that don't match API endpoints will serve the index.html. */
+app.get("*", function (req, res) {
   res.sendFile(path + "index.html");
 });
 

@@ -102,6 +102,39 @@ app.post("/example-webhook-handler",async (req: Request, res: Response) => {
     res.status(200).json({ message: "Webhook received successfully", data: req.body })
 })
 
+/* Direct API call to fetch contacts using provided token */
+app.get("/get-contacts", async (req: Request, res: Response) => {
+  const { locationId, token } = req.query;
+  
+  if (!locationId || !token) {
+    return res.status(400).json({ 
+      error: "Missing required parameters",
+      usage: "/get-contacts?locationId=YOUR_LOCATION_ID&token=YOUR_TOKEN"
+    });
+  }
+
+  try {
+    const axios = require('axios');
+    const apiDomain = process.env.GHL_API_DOMAIN || "https://services.leadconnectorhq.com";
+    
+    const response = await axios.get(`${apiDomain}/contacts/`, {
+      params: { locationId },
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Version': '2021-07-28'
+      }
+    });
+    
+    res.json(response.data);
+  } catch (error: any) {
+    console.error('Error fetching contacts:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch contacts',
+      details: error.response?.data || error.message 
+    });
+  }
+})
+
 /* Health check endpoint to test connection and configuration */
 app.get("/test-connection", async (req: Request, res: Response) => {
   const config = {
@@ -119,6 +152,7 @@ app.get("/test-connection", async (req: Request, res: Response) => {
       "/authorize-handler": "OAuth Authorization",
       "/example-api-call": "Company API Call",
       "/example-api-call-location": "Location API Call",
+      "/get-contacts": "Get Contacts (Direct)",
       "/example-webhook-handler": "Webhook Handler",
       "/decrypt-sso": "SSO Decryption",
       "/test-connection": "Connection Test (current)"

@@ -101,6 +101,32 @@ app.post("/example-webhook-handler",async (req: Request, res: Response) => {
     console.log(req.body)
 })
 
+/* Health check endpoint to test connection and configuration */
+app.get("/test-connection", async (req: Request, res: Response) => {
+  const config = {
+    status: "Server is running",
+    port: port,
+    host: host,
+    environment: {
+      GHL_APP_CLIENT_ID: process.env.GHL_APP_CLIENT_ID ? "✓ Configured" : "✗ Missing",
+      GHL_APP_CLIENT_SECRET: process.env.GHL_APP_CLIENT_SECRET ? "✓ Configured" : "✗ Missing",
+      GHL_APP_SSO_KEY: process.env.GHL_APP_SSO_KEY ? "✓ Configured" : "✗ Missing",
+      GHL_API_DOMAIN: process.env.GHL_API_DOMAIN || "https://services.leadconnectorhq.com (default)"
+    },
+    endpoints: {
+      "/": "Vue.js Application",
+      "/authorize-handler": "OAuth Authorization",
+      "/example-api-call": "Company API Call",
+      "/example-api-call-location": "Location API Call",
+      "/example-webhook-handler": "Webhook Handler",
+      "/decrypt-sso": "SSO Decryption",
+      "/test-connection": "Connection Test (current)"
+    },
+    notes: "To use API endpoints, you must first complete OAuth authorization flow"
+  };
+  res.json(config);
+})
+
 
 /* The `app.post("/decrypt-sso",async (req: Request, res: Response) => { ... })` route is used to
 decrypt session details using ssoKey. */

@@ -3,8 +3,8 @@
 ## Overview
 This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface.
 
-**Current Status**: Fully configured and running on Replit
-**Last Updated**: October 2, 2025
+**Current Status**: Fully configured and running on Replit with Settings page
+**Last Updated**: October 3, 2025
 
 ## Project Architecture
 
@@ -24,13 +24,27 @@ The backend provides:
 ### Frontend (Vue 3)
 - **Location**: `/src/ui` directory
 - **Build Output**: `/src/ui/dist` (copied to `/dist/ui/dist` during build)
-- **Framework**: Vue 3 with Vue CLI
+- **Framework**: Vue 3 with Vue Router
+- **Main View**: Settings page with sidebar navigation
 
 The frontend is a built static application served by the Express backend.
 
+#### Settings Page Structure
+The Settings page (`src/ui/src/views/Settings.vue`) includes:
+- **MY BUSINESS** section: Business Profile, My Profile, Billing, My Staff, Opportunities & Pipelines
+- **BUSINESS SERVICES** section: Automation, Calendars, Conversation AI (New), Knowledge Base (New), Voice AI Agents, Email Services, Phone Numbers, WhatsApp
+- **OTHER SETTINGS** section: Objects (New), Custom Fields, Custom Values, Manage Scoring, Domains & URL Redirects, Integrations, Private Integrations, Conversation Providers, Tags, Labs (New), Audit Logs, Brand Boards (New)
+
+All 25 settings sections have placeholder components in `src/ui/src/components/settings/`.
+
 ## Key Routes
 
-- `/` - Serves the Vue.js application
+### Frontend Routes (Vue Router)
+- `/` - Redirects to `/settings`
+- `/settings` - Settings page with sidebar navigation
+- `/settings/*` - 25 nested routes for each settings section (e.g., `/settings/business-profile`, `/settings/integrations`)
+
+### Backend API Routes
 - `/authorize-handler` - Handles GHL OAuth authorization
 - `/example-api-call` - Example company-level API call
 - `/example-api-call-location` - Example location-level API call
@@ -88,6 +102,7 @@ The Express server binds to `0.0.0.0` instead of localhost to be accessible thro
 
 ### Frontend
 - vue - Vue.js framework (v3)
+- vue-router - Official router for Vue 3
 - @vue/cli-service - Vue CLI tooling
 
 ## Recent Changes

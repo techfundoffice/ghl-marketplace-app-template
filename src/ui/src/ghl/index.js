@@ -6,10 +6,15 @@ export class GHL {
   constructor() {}
 
   async getUserData() {
-    const key = await new Promise((resolve) => {
+    const key = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('No parent frame detected - running in standalone mode'));
+      }, 1000);
+      
       window.parent.postMessage({ message: "REQUEST_USER_DATA" }, "*");
       window.addEventListener("message", ({ data }) => {
         if (data.message === "REQUEST_USER_DATA_RESPONSE") {
+          clearTimeout(timeout);
           resolve(data.payload)
         }
       });

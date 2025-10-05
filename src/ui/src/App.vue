@@ -1,8 +1,5 @@
 <template>
   <div id="app">
-    <div style="background: red; color: white; padding: 20px; font-size: 24px; font-weight: bold;">
-      VUE APP IS LOADED - If you see this, the app is working!
-    </div>
     <router-view></router-view>
   </div>
 </template>

@@ -1,6 +1,10 @@
 <template>
-  <div class="settings-container">
-    <aside class="settings-sidebar">
+  <div class="settings-wrapper">
+    <div class="settings-header">
+      <h1>Settings</h1>
+    </div>
+    <div class="settings-container">
+      <aside class="settings-sidebar">
       <div class="sidebar-section">
         <h3 class="section-header">MY BUSINESS</h3>
         <nav>
@@ -60,9 +64,10 @@
       </div>
     </aside>
 
-    <main class="settings-content">
-      <router-view></router-view>
-    </main>
+      <main class="settings-content">
+        <router-view></router-view>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -73,10 +78,30 @@ export default {
 </script>
 
 <style scoped>
-.settings-container {
-  display: flex;
+.settings-wrapper {
   min-height: 100vh;
   background-color: #f5f5f5;
+}
+
+.settings-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 20px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.settings-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.settings-container {
+  display: flex;
+  min-height: calc(100vh - 64px);
 }
 
 .settings-sidebar {
@@ -85,8 +110,9 @@ export default {
   border-right: 1px solid #e5e7eb;
   padding: 24px 0;
   overflow-y: auto;
-  position: fixed;
-  height: 100vh;
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
 }
 
 .sidebar-section {

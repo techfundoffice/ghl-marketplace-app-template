@@ -7,14 +7,13 @@
 <script>
 export default {
   name: 'App',
-  async mounted(){
-    try {
-      if (window.ghl && window.ghl.getUserData) {
-        const data = await window.ghl.getUserData();
-        console.log("user-details", data)
-      }
-    } catch (error) {
-      console.log("GHL initialization error:", error)
+  mounted(){
+    if (window.ghl && window.ghl.getUserData) {
+      window.ghl.getUserData().then(data => {
+        if (data) {
+          console.log("GHL user data loaded:", data);
+        }
+      });
     }
   }
 }

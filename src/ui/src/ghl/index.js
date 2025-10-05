@@ -6,20 +6,34 @@ export class GHL {
   constructor() {}
 
   async getUserData() {
-    const key = await new Promise((resolve, reject) => {
+    if (window === window.parent) {
+      console.info('Running in standalone mode - GHL SDK not available');
+      return null;
+    }
+
+    const key = await new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        reject(new Error('No parent frame detected - running in standalone mode'));
+        resolve(null);
       }, 1000);
       
-      window.parent.postMessage({ message: "REQUEST_USER_DATA" }, "*");
-      window.addEventListener("message", ({ data }) => {
+      const messageHandler = ({ data }) => {
         if (data.message === "REQUEST_USER_DATA_RESPONSE") {
           clearTimeout(timeout);
-          resolve(data.payload)
+          window.removeEventListener("message", messageHandler);
+          resolve(data.payload);
         }
-      });
+      };
+
+      window.addEventListener("message", messageHandler);
+      window.parent.postMessage({ message: "REQUEST_USER_DATA" }, "*");
     });
-    const res = await fetch('/decrypt-sso', {
+
+    if (!key) {
+      return null;
+    }
+
+    try {
+      const res = await fetch('/decrypt-sso', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -27,7 +41,11 @@ export class GHL {
         },
         body: JSON.stringify({key})
       });
-    const data = await res.json()
-    return data
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to decrypt SSO:', error);
+      return null;
+    }
   }
 }

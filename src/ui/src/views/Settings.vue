@@ -1,10 +1,10 @@
 <template>
-  <div class="settings-wrapper">
-    <div class="settings-header">
-      <h1>Settings</h1>
+  <div class="settings-wrapper" style="background: lightblue; min-height: 100vh;">
+    <div class="settings-header" style="background: green; color: white;">
+      <h1 style="font-size: 32px; font-weight: bold;">⚙️ SETTINGS PAGE - IF YOU SEE THIS, IT'S WORKING!</h1>
     </div>
-    <div class="settings-container">
-      <aside class="settings-sidebar">
+    <div class="settings-container" style="background: yellow;">
+      <aside class="settings-sidebar" style="background: pink;">
       <div class="sidebar-section">
         <h3 class="section-header">MY BUSINESS</h3>
         <nav>

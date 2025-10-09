@@ -1,10 +1,10 @@
 # GoHighLevel Marketplace App Template
 
 ## Overview
-This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface.
+This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface with a professional dashboard and settings pages.
 
-**Current Status**: Fully configured and running on Replit with Settings page
-**Last Updated**: October 3, 2025
+**Current Status**: Fully configured and running on Replit with Dashboard and Settings pages
+**Last Updated**: October 9, 2025
 
 ## Project Architecture
 
@@ -24,10 +24,26 @@ The backend provides:
 ### Frontend (Vue 3)
 - **Location**: `/src/ui` directory
 - **Build Output**: `/src/ui/dist` (copied to `/dist/ui/dist` during build)
-- **Framework**: Vue 3 with Vue Router
-- **Main View**: Settings page with sidebar navigation
+- **Framework**: Vue 3 with Vue Router (HTML5 history mode)
+- **Main Views**: Dashboard (landing page) and Settings page
+- **Layout**: Global sidebar navigation with main content area
 
 The frontend is a built static application served by the Express backend.
+
+#### Dashboard Page
+The Dashboard page (`src/ui/src/views/Dashboard.vue`) is the main landing page featuring:
+- Welcome header with subtitle
+- 4 metric cards: Total Contacts, Opportunities, Revenue, Appointments (with growth indicators)
+- Recent Activity feed showing latest events with color-coded status dots
+- Quick Actions panel with buttons for common tasks (Add Contact, Schedule Meeting, Create Opportunity, Send Campaign)
+
+#### Global Sidebar Navigation
+The Sidebar component (`src/ui/src/components/Sidebar.vue`) provides GHL-style navigation with:
+- App branding (GoHighLevel Marketplace App)
+- Location selector showing Demo Location
+- Search box with keyboard shortcut (⌘K)
+- Main navigation items: Launchpad, Dashboard, Conversations, Calendars, Contacts, Opportunities, Payments, AI Agents, Marketing, Automation, Sites, Memberships, Media Storage, Reputation, Reporting, App Marketplace, AI Site Builder, Account Booster, Settings
+- Active route highlighting
 
 #### Settings Page Structure
 The Settings page (`src/ui/src/views/Settings.vue`) includes:
@@ -39,9 +55,10 @@ All 25 settings sections have placeholder components in `src/ui/src/components/s
 
 ## Key Routes
 
-### Frontend Routes (Vue Router)
-- `/` - Redirects to `/settings`
-- `/settings` - Settings page with sidebar navigation
+### Frontend Routes (Vue Router - HTML5 History Mode)
+- `/` - Dashboard (main landing page)
+- `/launchpad`, `/conversations`, `/calendars`, etc. - Placeholder routes (currently show Dashboard)
+- `/settings` - Settings page with sidebar navigation (redirects to `/settings/business-profile`)
 - `/settings/*` - 25 nested routes for each settings section (e.g., `/settings/business-profile`, `/settings/integrations`)
 
 ### Backend API Routes
@@ -106,6 +123,14 @@ The Express server binds to `0.0.0.0` instead of localhost to be accessible thro
 - @vue/cli-service - Vue CLI tooling
 
 ## Recent Changes
+- October 9, 2025: Added Dashboard page and global navigation
+  - Created Dashboard.vue as main landing page with stats, activity feed, and quick actions
+  - Built Sidebar.vue component with GHL-style navigation (17 menu items)
+  - Updated App.vue to use sidebar + main content layout
+  - Switched to HTML5 history mode routing (from hash mode) for cleaner URLs
+  - Settings page now has nested routing with 25 subsections
+  - Express server configured with catch-all route for SPA support
+  
 - October 2, 2025: Initial setup for Replit environment
   - Updated port configuration to 5000 with 0.0.0.0 binding
   - Configured Vue dev server to allow all hosts for Replit proxy

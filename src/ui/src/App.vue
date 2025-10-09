@@ -1,12 +1,22 @@
 <template>
   <div id="app">
-    <router-view></router-view>
+    <div class="app-layout">
+      <Sidebar />
+      <main class="main-content">
+        <router-view></router-view>
+      </main>
+    </div>
   </div>
 </template>
 
 <script>
+import Sidebar from './components/Sidebar.vue'
+
 export default {
   name: 'App',
+  components: {
+    Sidebar
+  },
   mounted(){
     if (window.ghl && window.ghl.getUserData) {
       window.ghl.getUserData().then(data => {
@@ -34,5 +44,17 @@ body {
 
 #app {
   min-height: 100vh;
+  background: #ffffff;
+}
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #f9fafb;
 }
 </style>

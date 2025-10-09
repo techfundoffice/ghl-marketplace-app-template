@@ -1,0 +1,245 @@
+Skip to content
+Navigation Menu
+techfundoffice
+ghl-marketplace-app-template
+
+Type / to search
+Code
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+Settings
+Owner avatar
+ghl-marketplace-app-template
+Public
+forked from GoHighLevel/ghl-marketplace-app-template
+techfundoffice/ghl-marketplace-app-template
+Go to file
+t
+This branch is up to date with GoHighLevel/ghl-marketplace-app-template:main.
+Name		
+ved-go-high-level
+ved-go-high-level
+Merge pull request GoHighLevel#16 from GoHighLevel/bug/decrypt-sso-cr…
+04aabbf
+ · 
+4 months ago
+.github
+chore: fix invalid path of CODEOWNERS file
+2 years ago
+src
+removed crypto usage due to deprication of module
+4 months ago
+.env.example
+Update readme for SSO use
+2 years ago
+.gitignore
+Setup basic app template for GHL app
+2 years ago
+README.md
+Merge pull request GoHighLevel#6 from GoHighLevel/CU-85zu0px8a_Setup-…
+2 years ago
+package-lock.json
+Add sso handling apis
+2 years ago
+package.json
+Add sso handling apis
+2 years ago
+tsconfig.json
+Remove comments and add deployment steps to readme
+2 years ago
+Repository files navigation
+README
+GoHighLevel Marketplace App Server
+This is an Express.js server template for interacting with the GoHighLevel (GHL) API. It demonstrates how to set up an Express server to handle authorization and make GET requests to the GoHighLevel API.
+
+Table of Contents
+Prerequisites
+Installation
+Usage
+Routes
+SSO
+Vue 3 Web Application
+How to Deploy on Render
+License
+Prerequisites
+Before you get started, make sure you have the following prerequisites:
+
+Node.js installed on your machine.
+Installation
+Clone this repository to your local machine:
+
+git clone git@github.com:GoHighLevel/ghl-marketplace-app-template.git
+cd ghl-marketplace-app-template
+Install the project dependencies:
+
+npm install
+Set up your environment variables:
+
+Create a .env file by copying .env.example in the project root directory and add the following variables:
+
+     GHL_APP_CLIENT_ID=<CLIENT_ID> #Change it to you apps client id
+     GHL_APP_CLIENT_SECRET=<CLIENT_SECRET> #Change it to your apps secret
+Start the dev Express server:
+
+npm run dev
+Your server will now be running at http://localhost:3000 (or your specified port).
+
+Usage
+This Express server template provides routes for handling authorization and making API calls to GoHighLevel. Here's how you can use it:
+
+Authorization
+To setup the authorization process, you can add the below URL to redirect url section on Your marketplace app:
+
+http://localhost:3000/authorize-handler
+After obtaining the Installation details from GHL you can make changes in code to redirect user to anywhere you would like user journey to continue.
+
+Making API Calls
+For showcasing use of obtained installation i have created two example api call.
+
+Example API Call
+This dummy api calls GHL user api to fetch users for a specific company. Note: Your app must have users read scope added to you app. To make an example API call to GoHighLevel, access the following route:
+
+http://localhost:3000/example-api-call?companyId=your-company-id
+Replace your-company-id with the company ID for which you want to make the API call. Make sure your aop is installed for that specific company. This route demonstrates making a GET request to the GoHighLevel API using the ghl.requests method.
+
+Example API Call with Location
+This is another example where we are making call to contacts API. This flow searches for installation of the location you are trying to make call To make an example API call for a specific location, access the following route:
+
+http://localhost:3000/example-api-call-location?companyId=your-company-id&locationId=your-location-id
+Replace your-company-id and your-location-id with the respective company and location IDs. This route checks if an installation exists for the location, retrieves the location token if needed, and then makes the API request.
+
+Routes
+/authorize-handler: Handles GoHighLevel authorization flow.
+/example-api-call: Makes an example API call to GoHighLevel for a company.
+/example-api-call-location: Makes an example API call to GoHighLevel for a specific location within a company.
+/: Serves the main HTML file and static assets of your web application.
+Webhook Handling: A route (/example-webhook-handler) has been added to handle incoming POST requests, likely for handling webhooks. It logs the body of the incoming request. You can add it tou your webhook URL section under your app to start receiving requests.
+/decrypt-sso: A route (/decrypt-sso) has been added to decrypt sso request response received from parent app (Please refer UI app for more details).
+SSO
+Single Sign-On (SSO) is a centralized authentication method that streamlines access to various applications or services with a single set of login credentials. In the context of GoHighLevel, their SSO functionality currently supports integration exclusively with custom pages. When you implement SSO with custom pages through your application's UI, accessible via an iframe, you have the capability to request encrypted SSO details. These encrypted details can be decrypted using the SSOKey provided by GoHighLevel's marketplace, and an example API for this purpose has been included in the repository for straightforward integration.
+
+Vue 3 Web Application
+This project includes a Vue 3 web application located in the ui folder under the src directory. The Vue application is designed to be served by the Express.js server.You can use this UI section to build custom pages. To work with the Vue 3 application, follow these steps:
+
+Navigate to the ui folder:
+
+cd src/ui
+Install the Vue application dependencies:
+
+npm install
+Build the Vue application for production (if not already built):
+
+npm run build
+This will generate optimized static files in the dist directory, which will be served by the Express server.
+
+Start the Express server (if not already running):
+
+cd ../../   # Navigate back to the project root directory
+npm start
+Your Vue 3 application will be served alongside the API functionality at http://localhost:3000/. You can access the Vue application by visiting this URL in your web browser.
+
+How to Deploy on Render
+Follow these steps to deploy your GoHighLevel Marketplace App Server on Render:
+
+Sign Up on Render:
+
+Create a Render account at Render.
+
+Create an new Web service:
+
+Log in to Render.
+Click "Web Service" option to create new web service
+Connect Your Repository:
+
+Connect your github account
+Select your Git repository with the app's code.
+Configure Build and Start Commands:
+
+Specify build and start commands:
+Build Command: npm install && npm run build
+Start Command: npm start
+Set Environment Variables:
+
+In the environment settings, add:
+GHL_APP_CLIENT_ID: Your GoHighLevel app's client ID.
+GHL_APP_CLIENT_SECRET: Your GoHighLevel app's client secret.
+GHL_API_DOMAIN: https://services.leadconnectorhq.com
+GHL_APP_SSO_KEY: Your app's active SSO Key.
+Deploy Your App:
+
+Your app deployment would automatically start once everything configured.
+
+Monitor Deployment:
+
+Watch the progress in the Render dashboard in Logs section.
+
+Access Your App:
+
+Once deployed, access your app using the provided URL.
+
+Troubleshooting:
+
+Refer to Render's docs or contact support for help.
+
+Your GoHighLevel Marketplace App Server is now live on Render.
+
+License
+This project is licensed under the MIT License.
+
+About
+No description, website, or topics provided.
+Resources
+ Readme
+ Activity
+Stars
+ 0 stars
+Watchers
+ 0 watching
+Forks
+ 0 forks
+Releases
+No releases published
+Create a new release
+Packages
+No packages published
+Publish your first package
+Languages
+TypeScript
+77.8%
+ 
+Vue
+13.2%
+ 
+JavaScript
+5.9%
+ 
+HTML
+3.1%
+Suggested workflows
+Based on your tech stack
+Webpack logo
+Webpack
+Build a NodeJS project with npm and webpack.
+Grunt logo
+Grunt
+Build a NodeJS project with npm and grunt.
+Gulp logo
+Gulp
+Build a NodeJS project with npm and gulp.
+More workflows
+Footer
+© 2025 GitHub, Inc.
+Footer navigation
+Terms
+Privacy
+Security
+Status
+Community
+Docs
+Contact
+Manage cookies
+Do not share my personal information

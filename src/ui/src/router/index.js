@@ -205,9 +205,9 @@ const routes = [
     component: Dashboard
   },
   {
-    path: '/yelp-competitor-scraper',
-    name: 'Yelp Competitor Scraper',
-    component: Dashboard
+    path: '/yelp-scraper',
+    name: 'Yelp Scraper',
+    component: () => import('../views/YelpScraper.vue')
   }
 ];
 

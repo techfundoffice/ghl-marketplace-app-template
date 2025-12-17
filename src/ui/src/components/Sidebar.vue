@@ -192,14 +192,14 @@
         <span>Account Booster</span>
       </router-link>
 
-      <router-link to="/yelp-competitor-scraper" class="nav-item">
+      <router-link to="/yelp-scraper" class="nav-item">
         <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="m21 21-4.35-4.35"></path>
           <path d="M11 8v6"></path>
           <path d="M8 11h6"></path>
         </svg>
-        <span>Yelp Competitor Scraper</span>
+        <span>Yelp Scraper</span>
       </router-link>
 
       <div class="nav-divider"></div>

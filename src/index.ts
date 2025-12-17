@@ -179,6 +179,169 @@ app.post("/decrypt-sso",async (req: Request, res: Response) => {
   }
 })
 
+/* Yelp Scraper endpoint using Apify */
+app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
+  const { ApifyClient } = require('apify-client');
+  
+  const { searchTerms, location, searchLimit = 10, reviewLimit = 5 } = req.body;
+  
+  if (!searchTerms || !location) {
+    return res.status(400).json({ 
+      error: "Missing required parameters",
+      usage: { searchTerms: "string", location: "string", searchLimit: "number (optional)", reviewLimit: "number (optional)" }
+    });
+  }
+
+  const apifyToken = process.env.APIFY_API_TOKEN;
+  if (!apifyToken) {
+    return res.status(500).json({ error: "APIFY_API_TOKEN not configured" });
+  }
+
+  try {
+    const client = new ApifyClient({ token: apifyToken });
+    
+    const input = {
+      searchTerms: [searchTerms],
+      locations: [location],
+      searchLimit: parseInt(searchLimit),
+      maxImages: 1,
+      reviewLimit: parseInt(reviewLimit),
+      reviewsLanguage: "ALL"
+    };
+
+    console.log("Starting Yelp scrape with input:", input);
+    
+    const run = await client.actor("tri_angle/yelp-scraper").call(input);
+    
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    
+    const businesses = items.map((item: any) => ({
+      id: item.bizId || item.id,
+      name: item.name,
+      address: item.address,
+      phone: item.phone,
+      rating: item.rating,
+      reviewCount: item.reviewCount,
+      categories: item.categories,
+      url: item.url,
+      imageUrl: item.imageUrl,
+      reviews: (item.reviews || []).map((review: any) => ({
+        id: review.id,
+        authorName: review.author?.name || review.userName,
+        authorLocation: review.author?.location || review.userLocation,
+        rating: review.rating,
+        text: review.text,
+        date: review.date
+      }))
+    }));
+
+    console.log(`Scraped ${businesses.length} businesses`);
+    res.json({ success: true, businesses });
+  } catch (error: any) {
+    console.error('Yelp scrape error:', error);
+    res.status(500).json({ 
+      error: 'Failed to scrape Yelp',
+      details: error.message 
+    });
+  }
+});
+
+/* People Data Labs Consumer Enrichment endpoint */
+app.post("/api/enrich-consumer", async (req: Request, res: Response) => {
+  const axios = require('axios');
+  
+  const { name, location, email, phone, linkedin } = req.body;
+  
+  if (!name && !email && !phone && !linkedin) {
+    return res.status(400).json({ 
+      error: "At least one identifier required",
+      usage: { name: "string", location: "string", email: "string", phone: "string", linkedin: "string" }
+    });
+  }
+
+  const pdlApiKey = process.env.PDL_API_KEY;
+  if (!pdlApiKey) {
+    return res.status(500).json({ error: "PDL_API_KEY not configured" });
+  }
+
+  try {
+    const params: any = {};
+    
+    if (email) params.email = email;
+    if (phone) params.phone = phone;
+    if (linkedin) params.profile = linkedin;
+    if (name) {
+      const nameParts = name.split(' ');
+      if (nameParts.length >= 2) {
+        params.first_name = nameParts[0];
+        params.last_name = nameParts.slice(1).join(' ');
+      } else {
+        params.name = name;
+      }
+    }
+    if (location) params.location = location;
+
+    console.log("Enriching consumer with params:", params);
+
+    const response = await axios.get('https://api.peopledatalabs.com/v5/person/enrich', {
+      params,
+      headers: {
+        'X-Api-Key': pdlApiKey
+      }
+    });
+
+    const data = response.data.data;
+    
+    const enrichedData = {
+      success: true,
+      likelihood: response.data.likelihood,
+      consumer: {
+        fullName: data.full_name,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        email: data.work_email || data.personal_emails?.[0],
+        phone: data.mobile_phone || data.phone_numbers?.[0],
+        linkedin: data.linkedin_url,
+        location: data.location_name,
+        city: data.location_locality,
+        state: data.location_region,
+        country: data.location_country,
+        jobTitle: data.job_title,
+        company: data.job_company_name,
+        industry: data.industry,
+        skills: data.skills,
+        education: data.education?.map((edu: any) => ({
+          school: edu.school?.name,
+          degree: edu.degrees?.[0],
+          field: edu.majors?.[0]
+        })),
+        socialProfiles: {
+          linkedin: data.linkedin_url,
+          twitter: data.twitter_url,
+          facebook: data.facebook_url,
+          github: data.github_url
+        }
+      }
+    };
+
+    console.log("Enrichment successful, likelihood:", response.data.likelihood);
+    res.json(enrichedData);
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return res.json({ 
+        success: false, 
+        message: "No matching consumer found",
+        consumer: null 
+      });
+    }
+    console.error('PDL enrichment error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Failed to enrich consumer',
+      details: error.response?.data || error.message 
+    });
+  }
+});
+
 /*`app.get("*", function (req, res) {
   res.sendFile(path + "index.html");
 });` sets up a catch-all route for SPA routing.

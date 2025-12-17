@@ -11,12 +11,21 @@
           <h2>Search Competitors</h2>
           <div class="search-form">
             <div class="form-group">
+              <label>Competitor URL <span class="optional">(direct Yelp business page)</span></label>
+              <input type="text" v-model="directUrl" placeholder="https://www.yelp.com/biz/business-name" />
+            </div>
+            
+            <div class="divider">
+              <span>OR search by category</span>
+            </div>
+            
+            <div class="form-group">
               <label>Business Category</label>
-              <input type="text" v-model="searchTerms" placeholder="e.g., Restaurants, Plumbers, Dentists" />
+              <input type="text" v-model="searchTerms" placeholder="e.g., Restaurants, Plumbers, Dentists" :disabled="!!directUrl" />
             </div>
             <div class="form-group">
               <label>Location</label>
-              <input type="text" v-model="location" placeholder="e.g., San Francisco, CA" />
+              <input type="text" v-model="location" placeholder="e.g., San Francisco, CA" :disabled="!!directUrl" />
             </div>
             <div class="form-row">
               <div class="form-group half">
@@ -142,6 +151,7 @@ export default {
   name: 'YelpScraper',
   data() {
     return {
+      directUrl: 'https://www.yelp.com/biz/club-cat-irvine?osq=Club+Cat',
       searchTerms: '',
       location: '',
       searchLimit: '10',
@@ -153,8 +163,8 @@ export default {
   },
   methods: {
     async scrapeYelp() {
-      if (!this.searchTerms || !this.location) {
-        this.error = 'Please enter both business category and location';
+      if (!this.directUrl && (!this.searchTerms || !this.location)) {
+        this.error = 'Please enter a competitor URL or both business category and location';
         return;
       }
 
@@ -163,15 +173,22 @@ export default {
       this.businesses = [];
 
       try {
+        const payload = {
+          reviewLimit: parseInt(this.reviewLimit)
+        };
+        
+        if (this.directUrl) {
+          payload.directUrl = this.directUrl;
+        } else {
+          payload.searchTerms = this.searchTerms;
+          payload.location = this.location;
+          payload.searchLimit = parseInt(this.searchLimit);
+        }
+
         const response = await fetch('/api/yelp-scrape', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            searchTerms: this.searchTerms,
-            location: this.location,
-            searchLimit: parseInt(this.searchLimit),
-            reviewLimit: parseInt(this.reviewLimit)
-          })
+          body: JSON.stringify(payload)
         });
 
         const data = await response.json();
@@ -316,6 +333,39 @@ export default {
 .form-group input:focus,
 .form-group select:focus {
   border-color: #2563eb;
+}
+
+.form-group input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.optional {
+  font-weight: 400;
+  color: #888;
+  font-size: 11px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 8px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.divider span {
+  padding: 0 12px;
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
 }
 
 .search-btn {

@@ -183,12 +183,12 @@ app.post("/decrypt-sso",async (req: Request, res: Response) => {
 app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
   const { ApifyClient } = require('apify-client');
   
-  const { searchTerms, location, searchLimit = 10, reviewLimit = 5 } = req.body;
+  const { searchTerms, location, searchLimit = 10, reviewLimit = 5, directUrl } = req.body;
   
-  if (!searchTerms || !location) {
+  if (!directUrl && (!searchTerms || !location)) {
     return res.status(400).json({ 
       error: "Missing required parameters",
-      usage: { searchTerms: "string", location: "string", searchLimit: "number (optional)", reviewLimit: "number (optional)" }
+      usage: { directUrl: "string (optional)", searchTerms: "string", location: "string", searchLimit: "number (optional)", reviewLimit: "number (optional)" }
     });
   }
 
@@ -200,14 +200,19 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
   try {
     const client = new ApifyClient({ token: apifyToken });
     
-    const input = {
-      searchTerms: [searchTerms],
-      locations: [location],
-      searchLimit: parseInt(searchLimit),
+    let input: any = {
       maxImages: 1,
       reviewLimit: parseInt(reviewLimit),
       reviewsLanguage: "ALL"
     };
+
+    if (directUrl) {
+      input.directUrls = [directUrl];
+    } else {
+      input.searchTerms = [searchTerms];
+      input.locations = [location];
+      input.searchLimit = parseInt(searchLimit);
+    }
 
     console.log("Starting Yelp scrape with input:", input);
     
@@ -215,25 +220,32 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
     
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     
-    const businesses = items.map((item: any) => ({
-      id: item.bizId || item.id,
-      name: item.name,
-      address: item.address,
-      phone: item.phone,
-      rating: item.rating,
-      reviewCount: item.reviewCount,
-      categories: item.categories,
-      url: item.url,
-      imageUrl: item.imageUrl,
-      reviews: (item.reviews || []).map((review: any) => ({
-        id: review.id,
-        authorName: review.author?.name || review.userName,
-        authorLocation: review.author?.location || review.userLocation,
-        rating: review.rating,
-        text: review.text,
-        date: review.date
-      }))
-    }));
+    console.log("Raw Apify items:", JSON.stringify(items[0], null, 2));
+    
+    const businesses = items.map((item: any) => {
+      const reviewsArray = item.reviews || item.reviewsList || [];
+      
+      return {
+        id: item.bizId || item.id || item.businessId,
+        name: item.name || item.businessName,
+        address: typeof item.address === 'string' ? item.address : 
+          (item.address ? `${item.address.addressLine1 || ''}, ${item.address.city || ''}, ${item.address.regionCode || ''} ${item.address.postalCode || ''}`.trim() : ''),
+        phone: item.phone || item.phoneNumber,
+        rating: item.rating || item.aggregatedRating || item.overallRating,
+        reviewCount: item.reviewCount || item.numberOfReviews,
+        categories: item.categories || [],
+        url: item.url || item.businessUrl,
+        imageUrl: item.imageUrl || item.mainImageUrl,
+        reviews: reviewsArray.map((review: any) => ({
+          id: review.id || review.reviewId,
+          authorName: review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous',
+          authorLocation: review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '',
+          rating: review.rating || review.stars,
+          text: review.text || review.comment || review.reviewText,
+          date: review.date || review.datePublished
+        }))
+      };
+    });
 
     console.log(`Scraped ${businesses.length} businesses`);
     res.json({ success: true, businesses });

@@ -58,6 +58,24 @@
             <p v-if="isLoading" class="loading-note">This may take 1-2 minutes...</p>
           </div>
         </div>
+
+        <div class="log-panel" v-if="logs.length > 0">
+          <div class="log-header">
+            <h3>Output Log</h3>
+            <button class="clear-log-btn" @click="clearLogs">Clear</button>
+          </div>
+          <div class="log-content" ref="logContent">
+            <div 
+              v-for="(log, idx) in logs" 
+              :key="idx" 
+              class="log-entry"
+              :class="log.type"
+            >
+              <span class="log-time">{{ log.time }}</span>
+              <span class="log-message">{{ log.message }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="results-section">
@@ -158,19 +176,46 @@ export default {
       reviewLimit: '5',
       businesses: [],
       isLoading: false,
-      error: null
+      error: null,
+      logs: []
     }
   },
   methods: {
+    addLog(message, type = 'info') {
+      const now = new Date();
+      const time = now.toLocaleTimeString('en-US', { hour12: false });
+      this.logs.push({ message, type, time });
+      this.$nextTick(() => {
+        if (this.$refs.logContent) {
+          this.$refs.logContent.scrollTop = this.$refs.logContent.scrollHeight;
+        }
+      });
+    },
+    
+    clearLogs() {
+      this.logs = [];
+    },
+
     async scrapeYelp() {
       if (!this.directUrl && (!this.searchTerms || !this.location)) {
         this.error = 'Please enter a competitor URL or both business category and location';
+        this.addLog('Missing required fields', 'error');
         return;
       }
 
       this.isLoading = true;
       this.error = null;
       this.businesses = [];
+      
+      this.addLog('Starting Yelp scrape...', 'info');
+      
+      if (this.directUrl) {
+        this.addLog(`Target URL: ${this.directUrl}`, 'info');
+      } else {
+        this.addLog(`Searching: "${this.searchTerms}" in ${this.location}`, 'info');
+      }
+      
+      this.addLog('Calling Apify epctex/yelp-scraper actor...', 'info');
 
       try {
         const payload = {
@@ -197,6 +242,9 @@ export default {
           throw new Error(data.error || 'Failed to scrape Yelp');
         }
 
+        this.addLog('Received response from Apify', 'success');
+        this.addLog(`Processing ${data.businesses?.length || 0} businesses...`, 'info');
+
         this.businesses = data.businesses.map(b => ({
           ...b,
           reviews: (b.reviews || []).map(r => ({ 
@@ -208,8 +256,18 @@ export default {
             enrichedData: null 
           }))
         }));
+        
+        let totalReviewers = 0;
+        this.businesses.forEach(b => {
+          this.addLog(`Saved: ${b.name} (${b.rating} stars, ${b.reviewCount} reviews)`, 'success');
+          totalReviewers += b.reviews?.length || 0;
+        });
+        
+        this.addLog(`Total reviewers found: ${totalReviewers}`, 'success');
+        this.addLog('Scrape completed successfully!', 'success');
       } catch (err) {
         this.error = err.message;
+        this.addLog(`Error: ${err.message}`, 'error');
         console.error('Scrape error:', err);
       } finally {
         this.isLoading = false;
@@ -222,6 +280,7 @@ export default {
 
       if (!review.reviewerId) {
         console.error('No reviewerId for this review');
+        this.addLog(`No reviewer ID for ${review.authorName}`, 'warning');
         this.businesses[businessIndex].reviews[reviewIdx].enrichedData = { 
           success: false, 
           message: 'No reviewer ID available' 
@@ -229,6 +288,7 @@ export default {
         return;
       }
 
+      this.addLog(`Enriching: ${review.authorName} (${review.authorLocation})...`, 'info');
       this.businesses[businessIndex].reviews[reviewIdx].enriching = true;
 
       try {
@@ -261,8 +321,21 @@ export default {
             jobTitle: enrichment.jobTitle
           }
         };
+        
+        if (data.alreadyEnriched) {
+          this.addLog(`${review.authorName}: Using cached enrichment data`, 'info');
+        } else if (enrichment.success !== false) {
+          const details = [];
+          if (enrichment.email) details.push(`Email: ${enrichment.email}`);
+          if (enrichment.phone) details.push(`Phone: ${enrichment.phone}`);
+          if (enrichment.company) details.push(`Company: ${enrichment.company}`);
+          this.addLog(`${review.authorName}: ${details.length > 0 ? details.join(', ') : 'No contact info found'}`, details.length > 0 ? 'success' : 'warning');
+        } else {
+          this.addLog(`${review.authorName}: No match found in People Data Labs`, 'warning');
+        }
       } catch (err) {
         console.error('Enrich error:', err);
+        this.addLog(`${review.authorName}: ${err.message}`, 'error');
         this.businesses[businessIndex].reviews[reviewIdx].enrichedData = { 
           success: false, 
           message: err.message 
@@ -697,6 +770,103 @@ export default {
   font-size: 12px;
   color: #888;
   font-style: italic;
+}
+
+.log-panel {
+  margin-top: 20px;
+  background: #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3d3d3d;
+}
+
+.log-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.clear-log-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #999;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-log-btn:hover {
+  background: #3d3d3d;
+  border-color: #666;
+  color: #ccc;
+}
+
+.log-content {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 8px 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.log-entry {
+  display: flex;
+  gap: 12px;
+  padding: 4px 16px;
+}
+
+.log-time {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.log-message {
+  word-break: break-word;
+}
+
+.log-entry.info .log-message {
+  color: #64b5f6;
+}
+
+.log-entry.success .log-message {
+  color: #81c784;
+}
+
+.log-entry.warning .log-message {
+  color: #ffb74d;
+}
+
+.log-entry.error .log-message {
+  color: #e57373;
+}
+
+.log-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-content::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.log-content::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+
+.log-content::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }
 
 @media (max-width: 1000px) {

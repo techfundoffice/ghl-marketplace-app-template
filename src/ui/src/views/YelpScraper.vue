@@ -199,7 +199,14 @@ export default {
 
         this.businesses = data.businesses.map(b => ({
           ...b,
-          reviews: (b.reviews || []).map(r => ({ ...r, enriching: false, enrichedData: null }))
+          reviews: (b.reviews || []).map(r => ({ 
+            ...r, 
+            authorName: r.reviewer?.name || r.authorName || 'Anonymous',
+            authorLocation: r.reviewer?.location || r.authorLocation || '',
+            reviewerId: r.reviewer?.id || r.reviewerId,
+            enriching: false, 
+            enrichedData: null 
+          }))
         }));
       } catch (err) {
         this.error = err.message;
@@ -213,6 +220,15 @@ export default {
       const businessIndex = this.businesses.findIndex(b => b.id === businessId);
       if (businessIndex === -1) return;
 
+      if (!review.reviewerId) {
+        console.error('No reviewerId for this review');
+        this.businesses[businessIndex].reviews[reviewIdx].enrichedData = { 
+          success: false, 
+          message: 'No reviewer ID available' 
+        };
+        return;
+      }
+
       this.businesses[businessIndex].reviews[reviewIdx].enriching = true;
 
       try {
@@ -220,6 +236,7 @@ export default {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            reviewerId: review.reviewerId,
             name: review.authorName,
             location: review.authorLocation
           })
@@ -231,7 +248,19 @@ export default {
           throw new Error(data.error || 'Failed to enrich consumer');
         }
 
-        this.businesses[businessIndex].reviews[reviewIdx].enrichedData = data;
+        const enrichment = data.enrichment || data;
+        this.businesses[businessIndex].reviews[reviewIdx].enrichedData = {
+          success: enrichment.success !== false,
+          alreadyEnriched: data.alreadyEnriched,
+          likelihood: enrichment.likelihood,
+          consumer: {
+            email: enrichment.email,
+            phone: enrichment.phone,
+            linkedin: enrichment.linkedin,
+            company: enrichment.company,
+            jobTitle: enrichment.jobTitle
+          }
+        };
       } catch (err) {
         console.error('Enrich error:', err);
         this.businesses[businessIndex].reviews[reviewIdx].enrichedData = { 

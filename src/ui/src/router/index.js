@@ -208,6 +208,11 @@ const routes = [
     path: '/yelp-scraper',
     name: 'Yelp Scraper',
     component: () => import('../views/YelpScraper.vue')
+  },
+  {
+    path: '/reviewers',
+    name: 'Reviewers Database',
+    component: () => import('../views/ReviewersDatabase.vue')
   }
 ];
 

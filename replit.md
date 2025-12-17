@@ -1,9 +1,9 @@
 # GoHighLevel Marketplace App Template
 
 ## Overview
-This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface with a professional dashboard and settings pages.
+This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface with a professional dashboard, settings pages, and a Yelp Scraper for building a database of competitor reviewers.
 
-**Current Status**: Fully configured and running on Replit with Dashboard, Settings, and Yelp Scraper pages
+**Current Status**: Fully configured and running on Replit with Dashboard, Settings, Yelp Scraper, and Reviewers Database pages
 **Last Updated**: December 17, 2025
 
 ## Project Architecture
@@ -12,55 +12,61 @@ This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to bu
 - **Location**: `/src` directory
 - **Main Entry**: `src/index.ts`
 - **Port**: 5000 (bound to 0.0.0.0 for Replit)
-- **Build Output**: `/dist` directory
+- **Build Output**: `/dist/src` directory
+- **Database**: PostgreSQL via Drizzle ORM
 
 The backend provides:
 - OAuth authorization handling for GHL
 - Example API endpoints for making requests to GHL API
 - SSO decryption functionality
 - Webhook handling
+- Yelp scraping via Apify with database persistence
+- Consumer enrichment via People Data Labs with caching
 - Static file serving for the Vue frontend
+
+### Database (PostgreSQL + Drizzle ORM)
+- **Schema**: `shared/schema.ts`
+- **Connection**: `server/db.ts`
+- **Config**: `drizzle.config.ts`
+
+Database Tables:
+- `businesses` - Scraped Yelp businesses with yelpId, name, address, rating, etc.
+- `reviewers` - Individual reviewers with name, location, yelpUserId
+- `reviews` - Reviews linking businesses to reviewers with rating, text, date
+- `enrichments` - Cached People Data Labs enrichment results (email, phone, company, LinkedIn)
 
 ### Frontend (Vue 3)
 - **Location**: `/src/ui` directory
-- **Build Output**: `/src/ui/dist` (copied to `/dist/ui/dist` during build)
+- **Build Output**: `/src/ui/dist` (copied to `/dist/src/ui/dist` during build)
 - **Framework**: Vue 3 with Vue Router (HTML5 history mode)
-- **Main Views**: Dashboard (landing page), Settings page, and Yelp Scraper
+- **Main Views**: Dashboard, Settings, Yelp Scraper, Reviewers Database
 - **Layout**: Global sidebar navigation with main content area
 
 The frontend is a built static application served by the Express backend.
 
-#### Dashboard Page
-The Dashboard page (`src/ui/src/views/Dashboard.vue`) is the main landing page featuring:
-- Welcome header with subtitle
-- 4 metric cards: Total Contacts, Opportunities, Revenue, Appointments (with growth indicators)
-- Recent Activity feed showing latest events with color-coded status dots
-- Quick Actions panel with buttons for common tasks (Add Contact, Schedule Meeting, Create Opportunity, Send Campaign)
+#### Yelp Scraper Page
+The Yelp Scraper page (`src/ui/src/views/YelpScraper.vue`) allows users to:
+- Enter a direct Yelp business URL OR search by category/location
+- Scrape businesses and their reviews via Apify's epctex/yelp-scraper
+- View scraped businesses with ratings, categories, and reviewer info
+- Enrich individual reviewers with contact data from People Data Labs
+- Data is automatically persisted to PostgreSQL database
 
-#### Global Sidebar Navigation
-The Sidebar component (`src/ui/src/components/Sidebar.vue`) provides GHL-style navigation with:
-- App branding (GoHighLevel Marketplace App)
-- Location selector showing Demo Location
-- Search box with keyboard shortcut (⌘K)
-- Main navigation items: Launchpad, Dashboard, Conversations, Calendars, Contacts, Opportunities, Payments, AI Agents, Marketing, Automation, Sites, Memberships, Media Storage, Reputation, Reporting, App Marketplace, AI Site Builder, Account Booster, Settings
-- Active route highlighting
-
-#### Settings Page Structure
-The Settings page (`src/ui/src/views/Settings.vue`) includes:
-- **MY BUSINESS** section: Business Profile, My Profile, Billing, My Staff, Opportunities & Pipelines
-- **BUSINESS SERVICES** section: Automation, Calendars, Conversation AI (New), Knowledge Base (New), Voice AI Agents, Email Services, Phone Numbers, WhatsApp
-- **OTHER SETTINGS** section: Objects (New), Custom Fields, Custom Values, Manage Scoring, Domains & URL Redirects, Integrations, Private Integrations, Conversation Providers, Tags, Labs (New), Audit Logs, Brand Boards (New)
-
-All 25 settings sections have placeholder components in `src/ui/src/components/settings/`.
+#### Reviewers Database Page
+The Reviewers Database page (`src/ui/src/views/ReviewersDatabase.vue`) displays:
+- All scraped reviewers from the database
+- Enrichment status (Enriched/Pending badges)
+- Contact information: email, phone, company, LinkedIn
+- Button to enrich individual reviewers who haven't been enriched
 
 ## Key Routes
 
 ### Frontend Routes (Vue Router - HTML5 History Mode)
 - `/` - Dashboard (main landing page)
-- `/launchpad`, `/conversations`, `/calendars`, etc. - Placeholder routes (currently show Dashboard)
-- `/settings` - Settings page with sidebar navigation (redirects to `/settings/business-profile`)
-- `/settings/*` - 25 nested routes for each settings section (e.g., `/settings/business-profile`, `/settings/integrations`)
 - `/yelp-scraper` - Yelp Scraper page for finding competitors and enriching consumer data
+- `/reviewers` - Reviewers Database showing all scraped reviewers with enrichment status
+- `/settings` - Settings page with sidebar navigation
+- `/settings/*` - 25 nested routes for each settings section
 
 ### Backend API Routes
 - `/authorize-handler` - Handles GHL OAuth authorization
@@ -68,34 +74,57 @@ All 25 settings sections have placeholder components in `src/ui/src/components/s
 - `/example-api-call-location` - Example location-level API call
 - `/example-webhook-handler` - Webhook endpoint
 - `/decrypt-sso` - SSO decryption endpoint
-- `/api/yelp-scrape` - POST endpoint to scrape Yelp businesses and reviewers via Apify
-- `/api/enrich-consumer` - POST endpoint to enrich consumer data via People Data Labs
+- `/test-connection` - Health check showing configuration status
+- `/get-contacts` - Direct API call to fetch contacts with token
+
+#### Yelp Scraper API
+- `POST /api/yelp-scrape` - Scrape Yelp businesses and save to database
+  - Body: `{ directUrl?: string, searchTerms?: string, location?: string, searchLimit?: number }`
+  - Uses epctex/yelp-scraper Apify actor with `includeReviews: true`
+  - Deduplicates businesses by yelpId, reviewers by name+location
+  - Returns saved businesses with reviews and reviewer database IDs
+
+- `POST /api/enrich-consumer` - Enrich reviewer with People Data Labs
+  - Body: `{ reviewerId: number, name?: string, location?: string }`
+  - Caches enrichment results in database (avoids duplicate API calls)
+  - Returns enrichment data: email, phone, company, jobTitle, linkedin
+
+- `GET /api/reviewers` - List all reviewers with enrichment status
+  - Returns all reviewers with isEnriched flag and enrichment details
 
 ## Environment Variables
 
-The following environment variables are required (configured via Replit Secrets):
+Required (configured via Replit Secrets):
+- `DATABASE_URL` - PostgreSQL connection string (auto-configured by Replit)
+- `APIFY_API_TOKEN` - Apify API token for Yelp scraping
+- `PDL_API_KEY` - People Data Labs API key for consumer enrichment
 
+Optional GHL Configuration:
 - `GHL_APP_CLIENT_ID` - Your GHL app's client ID
 - `GHL_APP_CLIENT_SECRET` - Your GHL app's client secret
 - `GHL_APP_SSO_KEY` - Your GHL app's SSO key
 - `GHL_API_DOMAIN` - Default: https://services.leadconnectorhq.com
 - `PORT` - Server port (default: 5000)
-- `APIFY_API_TOKEN` - Apify API token for Yelp scraping
-- `PDL_API_KEY` - People Data Labs API key for consumer enrichment
 
 ## Build Process
 
 The build process involves:
-1. Compiling TypeScript backend (`npx tsc`)
+1. Compiling TypeScript backend (`npx tsc`) - outputs to `/dist/src/`
 2. Installing UI dependencies and building Vue app (`npm run build-ui`)
-3. Copying built UI assets to dist directory
+3. Copying built UI assets to `/dist/src/ui/dist`
 
-Command: `npm run build`
+Commands:
+- `npm run build` - Full build (TypeScript + Vue)
+- `npm run build-ui` - Build Vue frontend only
+- `npm run dev` - Development mode with hot reload
+- `npm run db:push` - Push database schema changes
 
-## Development
+## Database Migrations
 
-For development, you can use:
-- `npm run dev` - Builds UI and runs backend with hot reload using ts-node-dev
+Using Drizzle ORM for database management:
+- Schema is defined in `shared/schema.ts`
+- Run `npm run db:push` to apply schema changes
+- Never manually write SQL migrations
 
 ## Deployment
 
@@ -104,24 +133,19 @@ The project is configured for Replit deployment with:
 - **Build Command**: `npm install && npm run build`
 - **Run Command**: `npm start`
 
-## Replit-Specific Configuration
-
-### Vue Configuration
-The Vue dev server is configured in `src/ui/vue.config.js` to allow all hosts (`allowedHosts: 'all`), which is required for Replit's proxy setup.
-
-### Backend Configuration
-The Express server binds to `0.0.0.0` instead of localhost to be accessible through Replit's infrastructure.
-
 ## Dependencies
 
 ### Backend
 - express - Web framework
 - typescript - TypeScript compiler
+- drizzle-orm - ORM for PostgreSQL
+- drizzle-kit - Database migration toolkit
+- pg - PostgreSQL client
 - dotenv - Environment variable management
 - axios - HTTP client for API calls
 - crypto-js - Encryption/decryption utilities
 - body-parser - Request body parsing
-- apify-client - Apify client for Yelp scraping integration
+- apify-client - Apify client for Yelp scraping
 
 ### Frontend
 - vue - Vue.js framework (v3)
@@ -129,25 +153,33 @@ The Express server binds to `0.0.0.0` instead of localhost to be accessible thro
 - @vue/cli-service - Vue CLI tooling
 
 ## Recent Changes
-- December 17, 2025: Added Yelp Scraper with Apify and People Data Labs integration
-  - Created YelpScraper.vue page for finding competitor businesses
-  - Added /api/yelp-scrape endpoint using Apify tri_angle/yelp-scraper actor
-  - Added /api/enrich-consumer endpoint using People Data Labs Person Enrichment API
-  - Search form with business category, location, max businesses, reviews per business
-  - Results display shows businesses with ratings, categories, and reviewers
-  - "Enrich Consumer" button for each reviewer to get email, phone, company, LinkedIn
-  - Added Yelp Scraper link to sidebar navigation
-  
-- October 9, 2025: Added Dashboard page and global navigation
-  - Created Dashboard.vue as main landing page with stats, activity feed, and quick actions
-  - Built Sidebar.vue component with GHL-style navigation (17 menu items)
-  - Updated App.vue to use sidebar + main content layout
-  - Switched to HTML5 history mode routing (from hash mode) for cleaner URLs
-  - Settings page now has nested routing with 25 subsections
-  - Express server configured with catch-all route for SPA support
-  
-- October 2, 2025: Initial setup for Replit environment
-  - Updated port configuration to 5000 with 0.0.0.0 binding
-  - Configured Vue dev server to allow all hosts for Replit proxy
-  - Set up deployment configuration for autoscale
-  - Configured workflow to run on port 5000
+
+### December 17, 2025: Database Persistence and Reviewers Database
+- Added PostgreSQL database with Drizzle ORM
+- Created normalized schema: businesses, reviewers, reviews, enrichments tables
+- Switched from tri_angle/yelp-scraper to epctex/yelp-scraper (better review support)
+- Updated /api/yelp-scrape to persist all data with deduplication
+- Updated /api/enrich-consumer to cache results (prevents duplicate PDL API charges)
+- Added /api/reviewers GET endpoint to list all reviewers with enrichment status
+- Created ReviewersDatabase.vue page to view all scraped reviewers
+- Added Reviewers Database link to sidebar navigation
+- Fixed build output paths for proper deployment
+
+### December 17, 2025: Initial Yelp Scraper
+- Created YelpScraper.vue page for finding competitor businesses
+- Added /api/yelp-scrape endpoint using Apify
+- Added /api/enrich-consumer endpoint using People Data Labs
+- Competitor URL field with direct Yelp business page support
+- Results display shows businesses with ratings, categories, and reviewers
+- "Enrich Consumer" button for each reviewer
+
+### October 9, 2025: Dashboard and Navigation
+- Created Dashboard.vue as main landing page
+- Built Sidebar.vue with GHL-style navigation
+- Switched to HTML5 history mode routing
+- Settings page with 25 subsections
+
+### October 2, 2025: Initial Replit Setup
+- Port configuration to 5000 with 0.0.0.0 binding
+- Vue dev server configured to allow all hosts
+- Autoscale deployment configuration

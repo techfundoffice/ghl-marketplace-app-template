@@ -47,6 +47,17 @@
                 </select>
               </div>
             </div>
+            
+            <div class="ai-mode-toggle">
+              <label class="toggle-label">
+                <span class="toggle-text">AI Mode</span>
+                <span class="toggle-hint">Uses AI-powered scraping</span>
+              </label>
+              <div class="toggle-switch" :class="{ active: aiMode }" @click="aiMode = !aiMode">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+            
             <button class="search-btn" @click="scrapeYelp" :disabled="isLoading">
               <svg v-if="!isLoading" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -159,6 +170,69 @@
             </div>
           </div>
         </div>
+
+        <div class="reviewers-table-section" v-if="allReviewers.length > 0">
+          <div class="table-header">
+            <h2>Reviewers Data Table</h2>
+            <span class="reviewer-count">{{ allReviewers.length }} total reviewers</span>
+          </div>
+          <div class="table-container">
+            <table class="reviewers-table">
+              <thead>
+                <tr>
+                  <th @click="sortTable('authorName')" class="sortable">
+                    Name
+                    <span class="sort-icon" v-if="sortColumn === 'authorName'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th @click="sortTable('authorLocation')" class="sortable">
+                    Location
+                    <span class="sort-icon" v-if="sortColumn === 'authorLocation'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th @click="sortTable('businessName')" class="sortable">
+                    Business
+                    <span class="sort-icon" v-if="sortColumn === 'businessName'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th @click="sortTable('rating')" class="sortable">
+                    Rating
+                    <span class="sort-icon" v-if="sortColumn === 'rating'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                  </th>
+                  <th>Enrichment Status</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(reviewer, idx) in sortedReviewers" :key="idx">
+                  <td class="name-cell">{{ reviewer.authorName || 'Anonymous' }}</td>
+                  <td>{{ reviewer.authorLocation || '-' }}</td>
+                  <td>{{ reviewer.businessName }}</td>
+                  <td class="rating-cell">
+                    <span v-for="n in 5" :key="n" class="star" :class="{ filled: n <= reviewer.rating }">★</span>
+                  </td>
+                  <td>
+                    <span v-if="reviewer.enrichedData" class="status-badge enriched">Enriched</span>
+                    <span v-else class="status-badge pending">Pending</span>
+                  </td>
+                  <td>{{ reviewer.enrichedData?.consumer?.email || '-' }}</td>
+                  <td>{{ reviewer.enrichedData?.consumer?.phone || '-' }}</td>
+                  <td>
+                    <button 
+                      v-if="!reviewer.enrichedData"
+                      class="table-enrich-btn"
+                      @click="enrichFromTable(reviewer)"
+                      :disabled="reviewer.enriching"
+                    >
+                      <span v-if="reviewer.enriching" class="spinner small"></span>
+                      {{ reviewer.enriching ? '...' : 'Enrich' }}
+                    </button>
+                    <span v-else class="enriched-check">✓</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -177,7 +251,46 @@ export default {
       businesses: [],
       isLoading: false,
       error: null,
-      logs: []
+      logs: [],
+      aiMode: false,
+      sortColumn: 'authorName',
+      sortDirection: 'asc'
+    }
+  },
+  computed: {
+    allReviewers() {
+      const reviewers = [];
+      this.businesses.forEach(business => {
+        (business.reviews || []).forEach((review, reviewIdx) => {
+          reviewers.push({
+            ...review,
+            businessId: business.id,
+            businessName: business.name,
+            reviewIdx
+          });
+        });
+      });
+      return reviewers;
+    },
+    sortedReviewers() {
+      const sorted = [...this.allReviewers];
+      sorted.sort((a, b) => {
+        let aVal = a[this.sortColumn];
+        let bVal = b[this.sortColumn];
+        
+        if (aVal == null) aVal = '';
+        if (bVal == null) bVal = '';
+        
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+        
+        if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return sorted;
     }
   },
   methods: {
@@ -194,6 +307,15 @@ export default {
     
     clearLogs() {
       this.logs = [];
+    },
+
+    sortTable(column) {
+      if (this.sortColumn === column) {
+        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortColumn = column;
+        this.sortDirection = 'asc';
+      }
     },
 
     async scrapeYelp() {
@@ -215,7 +337,13 @@ export default {
         this.addLog(`Searching: "${this.searchTerms}" in ${this.location}`, 'info');
       }
       
-      this.addLog('Calling Apify epctex/yelp-scraper actor...', 'info');
+      const endpoint = this.aiMode ? '/api/yelp-scrape-ai' : '/api/yelp-scrape';
+      
+      if (this.aiMode) {
+        this.addLog('AI Mode enabled - using AI-powered scraping...', 'info');
+      } else {
+        this.addLog('Calling Apify epctex/yelp-scraper actor...', 'info');
+      }
 
       try {
         const payload = {
@@ -230,7 +358,7 @@ export default {
           payload.searchLimit = parseInt(this.searchLimit);
         }
 
-        const response = await fetch('/api/yelp-scrape', {
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -242,7 +370,13 @@ export default {
           throw new Error(data.error || 'Failed to scrape Yelp');
         }
 
-        this.addLog('Received response from Apify', 'success');
+        if (data.logs && Array.isArray(data.logs)) {
+          data.logs.forEach(log => {
+            this.addLog(log.message || log, log.type || 'info');
+          });
+        }
+
+        this.addLog('Received response from ' + (this.aiMode ? 'AI scraper' : 'Apify'), 'success');
         this.addLog(`Processing ${data.businesses?.length || 0} businesses...`, 'info');
 
         this.businesses = data.businesses.map(b => ({
@@ -272,6 +406,14 @@ export default {
       } finally {
         this.isLoading = false;
       }
+    },
+
+    async enrichFromTable(reviewer) {
+      const businessIndex = this.businesses.findIndex(b => b.id === reviewer.businessId);
+      if (businessIndex === -1) return;
+      
+      const review = this.businesses[businessIndex].reviews[reviewer.reviewIdx];
+      await this.enrichConsumer(review, reviewer.businessId, reviewer.reviewIdx);
     },
 
     async enrichConsumer(review, businessId, reviewIdx) {
@@ -468,6 +610,64 @@ export default {
   font-size: 12px;
   color: #888;
   text-transform: uppercase;
+}
+
+.ai-mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+  border: 1px solid #c7d7fe;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.toggle-hint {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.toggle-switch {
+  width: 48px;
+  height: 26px;
+  background: #d1d5db;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  position: relative;
+}
+
+.toggle-switch.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: transform 0.3s ease;
+}
+
+.toggle-switch.active .toggle-slider {
+  transform: translateX(22px);
 }
 
 .search-btn {
@@ -867,6 +1067,152 @@ export default {
 
 .log-content::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+.reviewers-table-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.table-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.reviewer-count {
+  font-size: 13px;
+  color: #666;
+}
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.reviewers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.reviewers-table thead {
+  background: #f8fafc;
+}
+
+.reviewers-table th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.reviewers-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.reviewers-table th.sortable:hover {
+  background: #f1f5f9;
+}
+
+.sort-icon {
+  margin-left: 6px;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.reviewers-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.reviewers-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.reviewers-table tbody tr:nth-child(odd) {
+  background: #ffffff;
+}
+
+.reviewers-table tbody tr:hover {
+  background: #f0f4ff;
+}
+
+.name-cell {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.rating-cell .star {
+  color: #d1d5db;
+  font-size: 12px;
+}
+
+.rating-cell .star.filled {
+  color: #f59e0b;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-badge.enriched {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.table-enrich-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.table-enrich-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.table-enrich-btn:disabled {
+  background: #86efac;
+  cursor: not-allowed;
+}
+
+.enriched-check {
+  color: #10b981;
+  font-size: 16px;
+  font-weight: bold;
 }
 
 @media (max-width: 1000px) {

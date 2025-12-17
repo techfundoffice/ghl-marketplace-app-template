@@ -8,6 +8,7 @@ import { json } from "body-parser";
 import { db } from "../server/db";
 import { businesses, reviewers, reviews, enrichments } from "../shared/schema";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
+import { orchestratedYelpScrape } from "./ai-orchestrator";
 
 const path = __dirname + "/ui/dist/";
 
@@ -317,6 +318,146 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
     res.status(500).json({ 
       error: 'Failed to scrape Yelp',
       details: error.message 
+    });
+  }
+});
+
+/* AI-Orchestrated Yelp Scraper - uses AI to manage actor selection and fallbacks */
+app.post("/api/yelp-scrape-ai", async (req: Request, res: Response) => {
+  const { searchTerms, location, searchLimit = 10, directUrl } = req.body;
+  
+  if (!directUrl && (!searchTerms || !location)) {
+    return res.status(400).json({ 
+      error: "Missing required parameters",
+      usage: { directUrl: "string (optional)", searchTerms: "string", location: "string", searchLimit: "number (optional)" }
+    });
+  }
+
+  const apifyToken = process.env.APIFY_API_TOKEN;
+  if (!apifyToken) {
+    return res.status(500).json({ error: "APIFY_API_TOKEN not configured" });
+  }
+
+  const logs: { message: string; type: string; time: string }[] = [];
+  const logCallback = (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    logs.push({ message, type, time });
+    console.log(`[AI-Orchestrator] [${type}] ${message}`);
+  };
+
+  try {
+    const result = await orchestratedYelpScrape(
+      directUrl,
+      searchTerms,
+      location,
+      parseInt(searchLimit),
+      logCallback
+    );
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        logs,
+        attempts: result.attempts
+      });
+    }
+
+    // Save results to database
+    const savedBusinesses = [];
+    
+    for (const business of result.businesses) {
+      const yelpId = business.yelpId;
+      
+      const existingBusiness = await db.select().from(businesses).where(eq(businesses.yelpId, yelpId)).limit(1);
+      
+      let savedBusiness;
+      if (existingBusiness.length > 0) {
+        savedBusiness = existingBusiness[0];
+      } else {
+        const [inserted] = await db.insert(businesses).values({
+          yelpId,
+          name: business.name,
+          address: business.address,
+          phone: business.phone,
+          rating: business.rating,
+          reviewCount: business.reviewCount,
+          categories: business.categories,
+          url: business.url,
+          imageUrl: business.imageUrl,
+        }).returning();
+        savedBusiness = inserted;
+      }
+
+      const savedReviews = [];
+      for (const review of business.reviews || []) {
+        const authorName = review.authorName || 'Anonymous';
+        const authorLocation = review.authorLocation || '';
+        
+        let existingReviewer = await db.select().from(reviewers)
+          .where(and(
+            eq(reviewers.name, authorName),
+            eq(reviewers.location, authorLocation)
+          )).limit(1);
+        
+        let savedReviewer;
+        if (existingReviewer.length > 0) {
+          savedReviewer = existingReviewer[0];
+        } else {
+          const [inserted] = await db.insert(reviewers).values({
+            yelpUserId: review.yelpUserId,
+            name: authorName,
+            location: authorLocation,
+          }).returning();
+          savedReviewer = inserted;
+        }
+
+        const yelpReviewId = review.yelpReviewId;
+        let existingReview = yelpReviewId ? 
+          await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
+        
+        let savedReview;
+        if (existingReview.length > 0) {
+          savedReview = existingReview[0];
+        } else {
+          const [inserted] = await db.insert(reviews).values({
+            yelpReviewId,
+            businessId: savedBusiness.id,
+            reviewerId: savedReviewer.id,
+            rating: review.rating,
+            text: review.text,
+            date: review.date,
+          }).returning();
+          savedReview = inserted;
+        }
+
+        savedReviews.push({
+          ...savedReview,
+          reviewer: savedReviewer
+        });
+      }
+
+      savedBusinesses.push({
+        ...savedBusiness,
+        reviews: savedReviews
+      });
+    }
+
+    logCallback(`Saved ${savedBusinesses.length} businesses to database`, 'success');
+
+    res.json({ 
+      success: true, 
+      businesses: savedBusinesses,
+      actorUsed: result.actorUsed,
+      attempts: result.attempts,
+      logs
+    });
+  } catch (error: any) {
+    console.error('AI-Orchestrated Yelp scrape error:', error);
+    res.status(500).json({ 
+      error: 'Failed to scrape Yelp',
+      details: error.message,
+      logs
     });
   }
 });

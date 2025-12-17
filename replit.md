@@ -47,10 +47,20 @@ The frontend is a built static application served by the Express backend.
 #### Yelp Scraper Page
 The Yelp Scraper page (`src/ui/src/views/YelpScraper.vue`) allows users to:
 - Enter a direct Yelp business URL OR search by category/location
-- Scrape businesses and their reviews via Apify's epctex/yelp-scraper
+- Toggle AI Mode for intelligent actor selection with automatic fallbacks
+- Scrape businesses and their reviews via Apify actors
 - View scraped businesses with ratings, categories, and reviewer info
+- Reviewers Data Table showing all reviewers with sortable columns
 - Enrich individual reviewers with contact data from People Data Labs
 - Data is automatically persisted to PostgreSQL database
+
+#### AI Orchestrator
+The AI orchestrator (`src/ai-orchestrator.ts`) provides intelligent Apify actor management:
+- Uses OpenRouter (Llama 3.3 70B) via Replit AI Integrations
+- Automatically selects best Apify actor for the scraping task
+- Falls back to alternative actors if primary actor fails
+- Only uses pay-as-you-go Apify actors (no monthly subscriptions)
+- Provides real-time logging of actor selection and fallback attempts
 
 #### Reviewers Database Page
 The Reviewers Database page (`src/ui/src/views/ReviewersDatabase.vue`) displays:
@@ -83,6 +93,12 @@ The Reviewers Database page (`src/ui/src/views/ReviewersDatabase.vue`) displays:
   - Uses epctex/yelp-scraper Apify actor with `includeReviews: true`
   - Deduplicates businesses by yelpId, reviewers by name+location
   - Returns saved businesses with reviews and reviewer database IDs
+
+- `POST /api/yelp-scrape-ai` - AI-orchestrated Yelp scraping with automatic fallbacks
+  - Body: `{ directUrl?: string, searchTerms?: string, location?: string, searchLimit?: number }`
+  - Uses AI (OpenRouter Llama 3.3 70B) to select and manage Apify actors
+  - Automatically falls back to alternative actors if primary fails
+  - Returns saved businesses with logs of AI decisions and fallback attempts
 
 - `POST /api/enrich-consumer` - Enrich reviewer with People Data Labs
   - Body: `{ reviewerId: number, name?: string, location?: string }`

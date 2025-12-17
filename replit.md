@@ -3,8 +3,8 @@
 ## Overview
 This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface with a professional dashboard and settings pages.
 
-**Current Status**: Fully configured and running on Replit with Dashboard and Settings pages
-**Last Updated**: October 9, 2025
+**Current Status**: Fully configured and running on Replit with Dashboard, Settings, and Yelp Scraper pages
+**Last Updated**: December 17, 2025
 
 ## Project Architecture
 
@@ -25,7 +25,7 @@ The backend provides:
 - **Location**: `/src/ui` directory
 - **Build Output**: `/src/ui/dist` (copied to `/dist/ui/dist` during build)
 - **Framework**: Vue 3 with Vue Router (HTML5 history mode)
-- **Main Views**: Dashboard (landing page) and Settings page
+- **Main Views**: Dashboard (landing page), Settings page, and Yelp Scraper
 - **Layout**: Global sidebar navigation with main content area
 
 The frontend is a built static application served by the Express backend.
@@ -60,6 +60,7 @@ All 25 settings sections have placeholder components in `src/ui/src/components/s
 - `/launchpad`, `/conversations`, `/calendars`, etc. - Placeholder routes (currently show Dashboard)
 - `/settings` - Settings page with sidebar navigation (redirects to `/settings/business-profile`)
 - `/settings/*` - 25 nested routes for each settings section (e.g., `/settings/business-profile`, `/settings/integrations`)
+- `/yelp-scraper` - Yelp Scraper page for finding competitors and enriching consumer data
 
 ### Backend API Routes
 - `/authorize-handler` - Handles GHL OAuth authorization
@@ -67,6 +68,8 @@ All 25 settings sections have placeholder components in `src/ui/src/components/s
 - `/example-api-call-location` - Example location-level API call
 - `/example-webhook-handler` - Webhook endpoint
 - `/decrypt-sso` - SSO decryption endpoint
+- `/api/yelp-scrape` - POST endpoint to scrape Yelp businesses and reviewers via Apify
+- `/api/enrich-consumer` - POST endpoint to enrich consumer data via People Data Labs
 
 ## Environment Variables
 
@@ -77,6 +80,8 @@ The following environment variables are required (configured via Replit Secrets)
 - `GHL_APP_SSO_KEY` - Your GHL app's SSO key
 - `GHL_API_DOMAIN` - Default: https://services.leadconnectorhq.com
 - `PORT` - Server port (default: 5000)
+- `APIFY_API_TOKEN` - Apify API token for Yelp scraping
+- `PDL_API_KEY` - People Data Labs API key for consumer enrichment
 
 ## Build Process
 
@@ -116,6 +121,7 @@ The Express server binds to `0.0.0.0` instead of localhost to be accessible thro
 - axios - HTTP client for API calls
 - crypto-js - Encryption/decryption utilities
 - body-parser - Request body parsing
+- apify-client - Apify client for Yelp scraping integration
 
 ### Frontend
 - vue - Vue.js framework (v3)
@@ -123,6 +129,15 @@ The Express server binds to `0.0.0.0` instead of localhost to be accessible thro
 - @vue/cli-service - Vue CLI tooling
 
 ## Recent Changes
+- December 17, 2025: Added Yelp Scraper with Apify and People Data Labs integration
+  - Created YelpScraper.vue page for finding competitor businesses
+  - Added /api/yelp-scrape endpoint using Apify tri_angle/yelp-scraper actor
+  - Added /api/enrich-consumer endpoint using People Data Labs Person Enrichment API
+  - Search form with business category, location, max businesses, reviews per business
+  - Results display shows businesses with ratings, categories, and reviewers
+  - "Enrich Consumer" button for each reviewer to get email, phone, company, LinkedIn
+  - Added Yelp Scraper link to sidebar navigation
+  
 - October 9, 2025: Added Dashboard page and global navigation
   - Created Dashboard.vue as main landing page with stats, activity feed, and quick actions
   - Built Sidebar.vue component with GHL-style navigation (17 menu items)

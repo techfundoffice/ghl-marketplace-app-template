@@ -203,6 +203,11 @@ const routes = [
     path: '/account-booster',
     name: 'Account Booster',
     component: Dashboard
+  },
+  {
+    path: '/yelp-competitor-scraper',
+    name: 'Yelp Competitor Scraper',
+    component: Dashboard
   }
 ];
 

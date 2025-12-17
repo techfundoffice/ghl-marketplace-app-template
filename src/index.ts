@@ -5,6 +5,9 @@ import dotenv from "dotenv";
 import { GHL } from "./ghl";
 import * as CryptoJS from 'crypto-js'
 import { json } from "body-parser";
+import { db } from "../server/db";
+import { businesses, reviewers, reviews, enrichments } from "../shared/schema";
+import { eq, and, isNull, isNotNull } from "drizzle-orm";
 
 const path = __dirname + "/ui/dist/";
 
@@ -179,16 +182,16 @@ app.post("/decrypt-sso",async (req: Request, res: Response) => {
   }
 })
 
-/* Yelp Scraper endpoint using Apify */
+/* Yelp Scraper endpoint using Apify - epctex/yelp-scraper with database persistence */
 app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
   const { ApifyClient } = require('apify-client');
   
-  const { searchTerms, location, searchLimit = 10, reviewLimit = 5, directUrl } = req.body;
+  const { searchTerms, location, searchLimit = 10, directUrl } = req.body;
   
   if (!directUrl && (!searchTerms || !location)) {
     return res.status(400).json({ 
       error: "Missing required parameters",
-      usage: { directUrl: "string (optional)", searchTerms: "string", location: "string", searchLimit: "number (optional)", reviewLimit: "number (optional)" }
+      usage: { directUrl: "string (optional)", searchTerms: "string", location: "string", searchLimit: "number (optional)" }
     });
   }
 
@@ -201,54 +204,114 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
     const client = new ApifyClient({ token: apifyToken });
     
     let input: any = {
-      maxImages: 1,
-      reviewLimit: parseInt(reviewLimit),
-      reviewsLanguage: "ALL"
+      includeReviews: true,
+      maxItems: parseInt(searchLimit)
     };
 
     if (directUrl) {
-      input.directUrls = [directUrl];
+      input.startUrls = [{ url: directUrl }];
     } else {
       input.searchTerms = [searchTerms];
       input.locations = [location];
-      input.searchLimit = parseInt(searchLimit);
     }
 
-    console.log("Starting Yelp scrape with input:", input);
+    console.log("Starting Yelp scrape with epctex/yelp-scraper input:", input);
     
-    const run = await client.actor("tri_angle/yelp-scraper").call(input);
+    const run = await client.actor("epctex/yelp-scraper").call(input);
     
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     
     console.log("Raw Apify items:", JSON.stringify(items[0], null, 2));
     
-    const businesses = items.map((item: any) => {
-      const reviewsArray = item.reviews || item.reviewsList || [];
-      
-      return {
-        id: item.bizId || item.id || item.businessId,
-        name: item.name || item.businessName,
-        address: typeof item.address === 'string' ? item.address : 
-          (item.address ? `${item.address.addressLine1 || ''}, ${item.address.city || ''}, ${item.address.regionCode || ''} ${item.address.postalCode || ''}`.trim() : ''),
-        phone: item.phone || item.phoneNumber,
-        rating: item.rating || item.aggregatedRating || item.overallRating,
-        reviewCount: item.reviewCount || item.numberOfReviews,
-        categories: item.categories || [],
-        url: item.url || item.businessUrl,
-        imageUrl: item.imageUrl || item.mainImageUrl,
-        reviews: reviewsArray.map((review: any) => ({
-          id: review.id || review.reviewId,
-          authorName: review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous',
-          authorLocation: review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '',
-          rating: review.rating || review.stars,
-          text: review.text || review.comment || review.reviewText,
-          date: review.date || review.datePublished
-        }))
-      };
-    });
+    const savedBusinesses = [];
 
-    console.log(`Scraped ${businesses.length} businesses`);
-    res.json({ success: true, businesses });
+    for (const item of items) {
+      const yelpId = item.bizId || item.id || item.businessId || item.alias;
+      const businessName = item.name || item.businessName;
+      const address = typeof item.address === 'string' ? item.address : 
+        (item.address ? `${item.address.addressLine1 || ''}, ${item.address.city || ''}, ${item.address.regionCode || ''} ${item.address.postalCode || ''}`.trim() : 
+        (item.location ? `${item.location.address1 || ''}, ${item.location.city || ''}, ${item.location.state || ''} ${item.location.zip_code || ''}`.trim() : ''));
+      
+      const existingBusiness = await db.select().from(businesses).where(eq(businesses.yelpId, yelpId)).limit(1);
+      
+      let savedBusiness;
+      if (existingBusiness.length > 0) {
+        savedBusiness = existingBusiness[0];
+      } else {
+        const [inserted] = await db.insert(businesses).values({
+          yelpId,
+          name: businessName,
+          address,
+          phone: item.phone || item.phoneNumber || item.display_phone,
+          rating: item.rating || item.aggregatedRating || item.overallRating,
+          reviewCount: item.reviewCount || item.review_count || item.numberOfReviews,
+          categories: item.categories?.map((c: any) => typeof c === 'string' ? c : c.title || c.alias) || [],
+          url: item.url || item.businessUrl,
+          imageUrl: item.imageUrl || item.mainImageUrl || item.image_url,
+        }).returning();
+        savedBusiness = inserted;
+      }
+
+      const reviewsArray = item.reviews || item.reviewsList || [];
+      const savedReviews = [];
+
+      for (const review of reviewsArray) {
+        const authorName = review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous';
+        const authorLocation = review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '';
+        const yelpUserId = review.author?.userId || review.userId || review.user?.id;
+        
+        let existingReviewer = await db.select().from(reviewers)
+          .where(and(
+            eq(reviewers.name, authorName),
+            eq(reviewers.location, authorLocation)
+          )).limit(1);
+        
+        let savedReviewer;
+        if (existingReviewer.length > 0) {
+          savedReviewer = existingReviewer[0];
+        } else {
+          const [inserted] = await db.insert(reviewers).values({
+            yelpUserId,
+            name: authorName,
+            location: authorLocation,
+          }).returning();
+          savedReviewer = inserted;
+        }
+
+        const yelpReviewId = review.id || review.reviewId;
+        
+        let existingReview = yelpReviewId ? 
+          await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
+        
+        let savedReview;
+        if (existingReview.length > 0) {
+          savedReview = existingReview[0];
+        } else {
+          const [inserted] = await db.insert(reviews).values({
+            yelpReviewId,
+            businessId: savedBusiness.id,
+            reviewerId: savedReviewer.id,
+            rating: review.rating || review.stars,
+            text: review.text || review.comment || review.reviewText,
+            date: review.date || review.datePublished || review.time_created,
+          }).returning();
+          savedReview = inserted;
+        }
+
+        savedReviews.push({
+          ...savedReview,
+          reviewer: savedReviewer
+        });
+      }
+
+      savedBusinesses.push({
+        ...savedBusiness,
+        reviews: savedReviews
+      });
+    }
+
+    console.log(`Scraped and saved ${savedBusinesses.length} businesses`);
+    res.json({ success: true, businesses: savedBusinesses });
   } catch (error: any) {
     console.error('Yelp scrape error:', error);
     res.status(500).json({ 
@@ -258,16 +321,41 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
   }
 });
 
-/* People Data Labs Consumer Enrichment endpoint */
+/* People Data Labs Consumer Enrichment endpoint with database persistence */
 app.post("/api/enrich-consumer", async (req: Request, res: Response) => {
   const axios = require('axios');
   
-  const { name, location, email, phone, linkedin } = req.body;
+  const { reviewerId, name, location, email, phone, linkedin } = req.body;
   
-  if (!name && !email && !phone && !linkedin) {
+  if (!reviewerId) {
     return res.status(400).json({ 
-      error: "At least one identifier required",
-      usage: { name: "string", location: "string", email: "string", phone: "string", linkedin: "string" }
+      error: "reviewerId is required",
+      usage: { reviewerId: "number (database ID)", name: "string", location: "string", email: "string", phone: "string", linkedin: "string" }
+    });
+  }
+
+  const reviewer = await db.select().from(reviewers).where(eq(reviewers.id, parseInt(reviewerId))).limit(1);
+  if (reviewer.length === 0) {
+    return res.status(404).json({ error: "Reviewer not found" });
+  }
+
+  const existingEnrichment = await db.select().from(enrichments).where(eq(enrichments.reviewerId, parseInt(reviewerId))).limit(1);
+  if (existingEnrichment.length > 0) {
+    return res.json({ 
+      success: true, 
+      alreadyEnriched: true,
+      enrichment: existingEnrichment[0]
+    });
+  }
+
+  const reviewerData = reviewer[0];
+  const enrichName = name || reviewerData.name;
+  const enrichLocation = location || reviewerData.location;
+
+  if (!enrichName && !email && !phone && !linkedin) {
+    return res.status(400).json({ 
+      error: "At least one identifier required (name from reviewer or provided)",
+      usage: { reviewerId: "number", name: "string", location: "string", email: "string", phone: "string", linkedin: "string" }
     });
   }
 
@@ -282,16 +370,16 @@ app.post("/api/enrich-consumer", async (req: Request, res: Response) => {
     if (email) params.email = email;
     if (phone) params.phone = phone;
     if (linkedin) params.profile = linkedin;
-    if (name) {
-      const nameParts = name.split(' ');
+    if (enrichName) {
+      const nameParts = enrichName.split(' ');
       if (nameParts.length >= 2) {
         params.first_name = nameParts[0];
         params.last_name = nameParts.slice(1).join(' ');
       } else {
-        params.name = name;
+        params.name = enrichName;
       }
     }
-    if (location) params.location = location;
+    if (enrichLocation) params.location = enrichLocation;
 
     console.log("Enriching consumer with params:", params);
 
@@ -304,52 +392,92 @@ app.post("/api/enrich-consumer", async (req: Request, res: Response) => {
 
     const data = response.data.data;
     
-    const enrichedData = {
+    const [savedEnrichment] = await db.insert(enrichments).values({
+      reviewerId: parseInt(reviewerId),
       success: true,
       likelihood: response.data.likelihood,
-      consumer: {
-        fullName: data.full_name,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        email: data.work_email || data.personal_emails?.[0],
-        phone: data.mobile_phone || data.phone_numbers?.[0],
-        linkedin: data.linkedin_url,
-        location: data.location_name,
-        city: data.location_locality,
-        state: data.location_region,
-        country: data.location_country,
-        jobTitle: data.job_title,
-        company: data.job_company_name,
-        industry: data.industry,
-        skills: data.skills,
-        education: data.education?.map((edu: any) => ({
-          school: edu.school?.name,
-          degree: edu.degrees?.[0],
-          field: edu.majors?.[0]
-        })),
-        socialProfiles: {
-          linkedin: data.linkedin_url,
-          twitter: data.twitter_url,
-          facebook: data.facebook_url,
-          github: data.github_url
-        }
-      }
-    };
+      email: data.work_email || data.personal_emails?.[0],
+      phone: data.mobile_phone || data.phone_numbers?.[0],
+      linkedin: data.linkedin_url,
+      company: data.job_company_name,
+      jobTitle: data.job_title,
+      city: data.location_locality,
+      state: data.location_region,
+      country: data.location_country,
+      industry: data.industry,
+      rawData: data,
+    }).returning();
 
     console.log("Enrichment successful, likelihood:", response.data.likelihood);
-    res.json(enrichedData);
+    res.json({ success: true, enrichment: savedEnrichment });
   } catch (error: any) {
     if (error.response?.status === 404) {
+      const [savedEnrichment] = await db.insert(enrichments).values({
+        reviewerId: parseInt(reviewerId),
+        success: false,
+        likelihood: 0,
+      }).returning();
+
       return res.json({ 
         success: false, 
         message: "No matching consumer found",
-        consumer: null 
+        enrichment: savedEnrichment
       });
     }
     console.error('PDL enrichment error:', error.response?.data || error.message);
     res.status(500).json({ 
       error: 'Failed to enrich consumer',
       details: error.response?.data || error.message 
+    });
+  }
+});
+
+/* Get all reviewers with enrichment status */
+app.get("/api/reviewers", async (req: Request, res: Response) => {
+  try {
+    const allReviewers = await db.select({
+      id: reviewers.id,
+      yelpUserId: reviewers.yelpUserId,
+      name: reviewers.name,
+      location: reviewers.location,
+      createdAt: reviewers.createdAt,
+      enrichmentId: enrichments.id,
+      enrichmentSuccess: enrichments.success,
+      enrichmentLikelihood: enrichments.likelihood,
+      enrichmentEmail: enrichments.email,
+      enrichmentPhone: enrichments.phone,
+      enrichmentCompany: enrichments.company,
+      enrichmentJobTitle: enrichments.jobTitle,
+      enrichedAt: enrichments.enrichedAt,
+    })
+    .from(reviewers)
+    .leftJoin(enrichments, eq(reviewers.id, enrichments.reviewerId));
+
+    const formattedReviewers = allReviewers.map(r => ({
+      id: r.id,
+      yelpUserId: r.yelpUserId,
+      name: r.name,
+      location: r.location,
+      createdAt: r.createdAt,
+      isEnriched: r.enrichmentId !== null,
+      enrichment: r.enrichmentId ? {
+        id: r.enrichmentId,
+        success: r.enrichmentSuccess,
+        likelihood: r.enrichmentLikelihood,
+        email: r.enrichmentEmail,
+        phone: r.enrichmentPhone,
+        company: r.enrichmentCompany,
+        jobTitle: r.enrichmentJobTitle,
+        enrichedAt: r.enrichedAt,
+      } : null
+    }));
+
+    res.json({ success: true, reviewers: formattedReviewers, count: formattedReviewers.length });
+  } catch (error: any) {
+    console.error('Error fetching reviewers:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch reviewers',
+      details: error.message 
     });
   }
 });

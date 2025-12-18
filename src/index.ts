@@ -183,7 +183,7 @@ app.post("/decrypt-sso",async (req: Request, res: Response) => {
   }
 })
 
-/* Yelp Scraper endpoint using Apify - epctex/yelp-scraper with database persistence */
+/* Yelp Scraper endpoint using Apify - tri_angle/yelp-scraper with database persistence */
 app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
   const { ApifyClient } = require('apify-client');
   
@@ -205,7 +205,7 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
     const client = new ApifyClient({ token: apifyToken });
     
     let input: any = {
-      includeReviews: true,
+      scrapeReviewerDetails: true,
       maxItems: parseInt(searchLimit)
     };
 
@@ -216,9 +216,9 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
       input.locations = [location];
     }
 
-    console.log("Starting Yelp scrape with epctex/yelp-scraper input:", input);
+    console.log("Starting Yelp scrape with tri_angle/yelp-scraper input:", input);
     
-    const run = await client.actor("epctex/yelp-scraper").call(input);
+    const run = await client.actor("tri_angle/yelp-scraper").call(input);
     
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     

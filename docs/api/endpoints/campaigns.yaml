@@ -1,0 +1,823 @@
+openapi: 3.0.3
+info:
+  title: Campaigns API
+  version: 1.0.0
+  description: Campaign and email marketing endpoints
+
+paths:
+  /campaigns:
+    get:
+      summary: List campaigns
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: filter[type]
+          in: query
+          schema:
+            type: string
+            enum: [email, sms, both]
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [draft, scheduled, sending, sent, paused]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Campaign'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, type]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Summer Promotion 2025
+                type:
+                  type: string
+                  enum: [email, sms]
+                subject:
+                  type: string
+                  description: Email subject or SMS preview
+                  example: "Don't miss our summer sale!"
+                content:
+                  type: string
+                  description: HTML content for email or text for SMS
+                fromName:
+                  type: string
+                  example: Acme Marketing
+                fromEmail:
+                  type: string
+                  format: email
+                  example: marketing@acme.com
+                replyTo:
+                  type: string
+                  format: email
+                recipients:
+                  $ref: '#/components/schemas/CampaignRecipients'
+                scheduledAt:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+  /campaigns/{campaignId}:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    get:
+      summary: Get campaign details
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Campaign details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+    patch:
+      summary: Update campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                subject:
+                  type: string
+                content:
+                  type: string
+                fromName:
+                  type: string
+                fromEmail:
+                  type: string
+                  format: email
+                replyTo:
+                  type: string
+                  format: email
+                recipients:
+                  $ref: '#/components/schemas/CampaignRecipients'
+                scheduledAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Campaign updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+    delete:
+      summary: Delete campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Campaign deleted
+
+  /campaigns/{campaignId}/send:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    post:
+      summary: Send campaign immediately
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Campaign sending started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+  /campaigns/{campaignId}/schedule:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    post:
+      summary: Schedule campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduledAt]
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Campaign scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+  /campaigns/{campaignId}/pause:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    post:
+      summary: Pause sending campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Campaign paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+  /campaigns/{campaignId}/resume:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    post:
+      summary: Resume sending campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Campaign resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+
+  /campaigns/{campaignId}/test:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    post:
+      summary: Send test campaign
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipients]
+              properties:
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                  example: [test@example.com]
+      responses:
+        '200':
+          description: Test sent
+
+  /campaigns/{campaignId}/stats:
+    parameters:
+      - $ref: '#/components/parameters/CampaignIdParam'
+
+    get:
+      summary: Get campaign statistics
+      tags: [Campaigns]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Campaign statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignStats'
+
+  /emails:
+    get:
+      summary: List sent emails
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: contactId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: campaignId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [queued, sent, delivered, opened, clicked, bounced, failed]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of emails
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Email'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Send transactional email
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, to, subject, content]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                to:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                subject:
+                  type: string
+                  example: Your order confirmation
+                content:
+                  type: string
+                  description: HTML content
+                fromName:
+                  type: string
+                fromEmail:
+                  type: string
+                  format: email
+                replyTo:
+                  type: string
+                  format: email
+                cc:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                bcc:
+                  type: array
+                  items:
+                    type: string
+                    format: email
+                attachments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      filename:
+                        type: string
+                      content:
+                        type: string
+                        description: Base64 encoded content
+                      contentType:
+                        type: string
+                contactId:
+                  type: string
+                  format: uuid
+                  description: Associate with contact
+      responses:
+        '201':
+          description: Email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Email'
+
+  /emails/{emailId}:
+    parameters:
+      - $ref: '#/components/parameters/EmailIdParam'
+
+    get:
+      summary: Get email details
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Email details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Email'
+
+  /email-templates:
+    get:
+      summary: List email templates
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of email templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmailTemplate'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create email template
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, subject, content]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Welcome Email
+                subject:
+                  type: string
+                  example: "Welcome to {{companyName}}, {{firstName}}!"
+                content:
+                  type: string
+                  description: HTML content with variables
+                thumbnail:
+                  type: string
+                  format: uri
+                category:
+                  type: string
+                  example: onboarding
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailTemplate'
+
+  /email-templates/{templateId}:
+    parameters:
+      - $ref: '#/components/parameters/TemplateIdParam'
+
+    get:
+      summary: Get template details
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailTemplate'
+
+    patch:
+      summary: Update template
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                subject:
+                  type: string
+                content:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailTemplate'
+
+    delete:
+      summary: Delete template
+      tags: [Emails]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Template deleted
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CampaignIdParam:
+      name: campaignId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    EmailIdParam:
+      name: emailId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    TemplateIdParam:
+      name: templateId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [email, sms]
+        status:
+          type: string
+          enum: [draft, scheduled, sending, sent, paused]
+        subject:
+          type: string
+        content:
+          type: string
+        fromName:
+          type: string
+        fromEmail:
+          type: string
+          format: email
+        replyTo:
+          type: string
+          format: email
+        recipients:
+          $ref: '#/components/schemas/CampaignRecipients'
+        stats:
+          $ref: '#/components/schemas/CampaignStats'
+        scheduledAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CampaignRecipients:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [all, tags, segments, custom]
+        tags:
+          type: array
+          items:
+            type: string
+            format: uuid
+        segments:
+          type: array
+          items:
+            type: string
+            format: uuid
+        contactIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        filters:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              operator:
+                type: string
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+
+    CampaignStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total recipients
+        sent:
+          type: integer
+        delivered:
+          type: integer
+        opened:
+          type: integer
+        clicked:
+          type: integer
+        bounced:
+          type: integer
+        unsubscribed:
+          type: integer
+        openRate:
+          type: number
+          format: float
+        clickRate:
+          type: number
+          format: float
+        bounceRate:
+          type: number
+          format: float
+
+    Email:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        campaignId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+        subject:
+          type: string
+        content:
+          type: string
+        fromName:
+          type: string
+        fromEmail:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [queued, sent, delivered, opened, clicked, bounced, failed]
+        opens:
+          type: integer
+        clicks:
+          type: integer
+        error:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+        openedAt:
+          type: string
+          format: date-time
+        clickedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    EmailTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        subject:
+          type: string
+        content:
+          type: string
+        thumbnail:
+          type: string
+          format: uri
+        category:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

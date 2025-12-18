@@ -27,11 +27,12 @@ interface AttemptLog {
 }
 
 // List of known Yelp scraper actors (free or pay-as-you-go only, no rental required)
+// NOTE: widbox/yelp-scraper removed - requires paid rental subscription
 const YELP_ACTORS = [
-  { id: 'tri_angle/yelp-scraper', name: 'Triangle Yelp Scraper', priority: 1 },
-  { id: 'tri_angle/yelp-review-scraper', name: 'Triangle Yelp Review Scraper', priority: 2 },
-  { id: 'web_wanderer/yelp-reviews-scraper', name: 'Web Wanderer Yelp Reviews', priority: 3 },
-  { id: 'agents/yelp-business', name: 'Agents Yelp Business', priority: 4 },
+  { id: 'yin/yelp-scraper', name: 'Free Yelp Web Scraper', priority: 1 },  // Free scraper with business info + reviews
+  { id: 'tri_angle/yelp-scraper', name: 'Triangle Yelp Scraper', priority: 2 },  // Backup scraper
+  { id: 'tri_angle/yelp-review-scraper', name: 'Triangle Yelp Review Scraper', priority: 3 },
+  { id: 'web_wanderer/yelp-reviews-scraper', name: 'Web Wanderer Yelp Reviews', priority: 4 },
 ];
 
 // AI decides which actor to try next based on error context
@@ -87,7 +88,36 @@ Respond in JSON format only:
 function buildActorInput(actorId: string, directUrl: string, searchTerms?: string, location?: string, limit: number = 10): any {
   const baseInput: any = {};
 
-  if (actorId.includes('epctex')) {
+  // Add proxy configuration (required by most actors)
+  const proxyConfig = { useApifyProxy: true };
+
+  // yin/yelp-scraper - Free Yelp Web Scraper (primary choice)
+  if (actorId.includes('yin/yelp')) {
+    if (directUrl) {
+      baseInput.directUrls = [directUrl];
+    } else {
+      baseInput.searchTerms = [searchTerms];
+      baseInput.locations = [location];
+    }
+    baseInput.searchLimit = limit;
+    baseInput.maxImages = 5;
+    baseInput.proxy = proxyConfig;
+    return baseInput;
+  }
+
+  // widbox/yelp-scraper requires bizUrl and sortType (reviews only scraper)
+  if (actorId.includes('widbox')) {
+    if (directUrl) {
+      baseInput.bizUrl = directUrl;
+      baseInput.sortType = "DATE_DESC";
+      baseInput.reviewsCount = limit * 10; // Get more reviews
+      baseInput.proxy = proxyConfig;
+    } else {
+      // widbox doesn't support search - needs direct URL
+      throw new Error('widbox/yelp-scraper requires a direct URL');
+    }
+    return baseInput;
+  } else if (actorId.includes('epctex')) {
     if (directUrl) {
       baseInput.startUrls = [{ url: directUrl }];
     } else {
@@ -96,6 +126,7 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
     }
     baseInput.includeReviews = true;
     baseInput.maxItems = limit;
+    baseInput.proxy = proxyConfig;
   } else if (actorId.includes('apify/yelp')) {
     if (directUrl) {
       baseInput.startUrls = [{ url: directUrl }];
@@ -105,6 +136,7 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
     }
     baseInput.maxResults = limit;
     baseInput.includeReviews = true;
+    baseInput.proxy = proxyConfig;
   } else if (actorId.includes('tri_angle')) {
     if (directUrl) {
       baseInput.directUrls = [directUrl];
@@ -115,6 +147,7 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
     baseInput.searchLimit = limit;
     baseInput.reviewLimit = 10;
     baseInput.maxImages = 1;
+    baseInput.proxy = proxyConfig;
   } else if (actorId.includes('yelp-review-scraper')) {
     if (directUrl) {
       baseInput.directUrls = [directUrl];
@@ -123,6 +156,7 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
       baseInput.locations = [location];
     }
     baseInput.reviewLimit = limit;
+    baseInput.proxy = proxyConfig;
   } else if (actorId.includes('web_wanderer')) {
     if (directUrl) {
       baseInput.startUrls = [directUrl];
@@ -131,11 +165,13 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
       baseInput.location = location;
     }
     baseInput.maxReviews = limit;
+    baseInput.proxy = proxyConfig;
   } else if (actorId.includes('agents/yelp')) {
     if (directUrl) {
       baseInput.startUrls = [{ url: directUrl }];
     }
     baseInput.maxItems = limit;
+    baseInput.proxy = proxyConfig;
   } else {
     // Generic fallback
     if (directUrl) {
@@ -143,6 +179,7 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
       baseInput.startUrls = [{ url: directUrl }];
     }
     baseInput.maxItems = limit;
+    baseInput.proxy = proxyConfig;
   }
 
   return baseInput;
@@ -150,29 +187,100 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
 
 // Normalize different actor output formats to a common structure
 function normalizeResults(actorId: string, items: any[]): any[] {
-  return items.map(item => {
-    // Extract business info
+  // yin/yelp-scraper format
+  if (actorId.includes('yin/yelp')) {
+    return items.map(item => {
+      // Extract business info from yin/yelp-scraper format
+      const business = {
+        yelpId: item.bizId || item.id || item.alias || extractYelpIdFromUrl(item.directUrl || item.url),
+        name: item.name || item.businessName,
+        address: typeof item.address === 'string' ? item.address :
+          (item.address ? `${item.address.addressLine1 || item.address.street || ''}, ${item.address.city || ''}, ${item.address.regionCode || item.address.state || ''}`.trim() :
+          (item.location ? `${item.location.address1 || ''}, ${item.location.city || ''}, ${item.location.state || ''}`.trim() : '')),
+        phone: item.phone || item.phoneNumber || item.display_phone,
+        rating: item.aggregatedRating || item.rating || item.overallRating,
+        reviewCount: item.reviewCount || item.review_count || item.numberOfReviews,
+        categories: item.categories?.map((c: any) => typeof c === 'string' ? c : c.title || c.alias) ||
+          (item.type ? [item.type] : []) || (item.cuisine ? [item.cuisine] : []),
+        url: item.directUrl || item.url || item.businessUrl,
+        imageUrl: item.primaryPhoto || item.imageUrl || item.mainImageUrl || item.image_url,
+      };
+
+      // Extract reviews from yin/yelp-scraper format
+      const reviewsArray = item.reviews || item.reviewsList || [];
+      const reviews = reviewsArray.map((review: any, idx: number) => ({
+        yelpReviewId: review.id || review.reviewId || review.reviewAlias || review.review_id ||
+          `${business.yelpId}-${review.reviewerUrl || review.userId || idx}-${review.date || Date.now()}`,
+        authorName: review.reviewerName || review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous',
+        authorLocation: review.reviewerLocation || review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '',
+        yelpUserId: extractUserIdFromUrl(review.reviewerUrl) || review.author?.userId || review.userId || review.user?.id,
+        rating: review.rating || review.stars,
+        text: review.text || review.comment || review.reviewText || review.reviewContent,
+        date: review.date || review.datePublished || review.time_created,
+      }));
+
+      return { ...business, reviews };
+    });
+  }
+
+  // widbox/yelp-scraper returns reviews directly, not business objects
+  if (actorId.includes('widbox')) {
+    // Group reviews by business if possible, or create a single business
+    const reviewsList = items.map((review: any, idx: number) => ({
+      yelpReviewId: review.id || review.reviewId || review.review_id || review.reviewAlias ||
+        `widbox-${review.userId || review.user_id || idx}-${review.date || Date.now()}`,
+      authorName: review.userName || review.user_name || review.reviewer_name || review.reviewerName ||
+        review.user?.name || review.authorName || review.author?.name || review.name || 'Anonymous',
+      authorLocation: review.userLocation || review.user_location || review.reviewer_location || review.reviewerLocation ||
+        review.user?.location || review.authorLocation || review.author?.location || '',
+      yelpUserId: review.userId || review.user_id || review.reviewer_id ||
+        review.user?.id || review.author?.userId || review.author_id,
+      rating: review.rating || review.stars || review.review_rating,
+      text: review.text || review.comment || review.reviewText || review.review_text || review.content,
+      date: review.date || review.datePublished || review.time_created || review.review_date,
+    }));
+
+    // Extract business info from first item if available
+    const firstItem = items[0] || {};
     const business = {
-      yelpId: item.bizId || item.id || item.businessId || item.alias,
+      yelpId: firstItem.bizId || firstItem.businessId || firstItem.business_id || extractYelpIdFromUrl(firstItem.bizUrl) || 'widbox-business',
+      name: firstItem.businessName || firstItem.business_name || firstItem.name || 'Business',
+      address: firstItem.businessAddress || firstItem.business_address || firstItem.address || '',
+      phone: firstItem.businessPhone || firstItem.business_phone || firstItem.phone || '',
+      rating: firstItem.businessRating || firstItem.business_rating || firstItem.overallRating || 0,
+      reviewCount: items.length,
+      categories: [],
+      url: firstItem.bizUrl || firstItem.businessUrl || firstItem.business_url || '',
+      imageUrl: firstItem.businessImage || firstItem.business_image || '',
+      reviews: reviewsList
+    };
+
+    return [business];
+  }
+
+  return items.map(item => {
+    // Extract business info (generic format)
+    const business = {
+      yelpId: item.bizId || item.id || item.businessId || item.alias || extractYelpIdFromUrl(item.url || item.directUrl),
       name: item.name || item.businessName,
-      address: typeof item.address === 'string' ? item.address : 
-        (item.address ? `${item.address.addressLine1 || ''}, ${item.address.city || ''}, ${item.address.regionCode || ''}`.trim() : 
+      address: typeof item.address === 'string' ? item.address :
+        (item.address ? `${item.address.addressLine1 || ''}, ${item.address.city || ''}, ${item.address.regionCode || ''}`.trim() :
         (item.location ? `${item.location.address1 || ''}, ${item.location.city || ''}, ${item.location.state || ''}`.trim() : '')),
       phone: item.phone || item.phoneNumber || item.display_phone,
       rating: item.rating || item.aggregatedRating || item.overallRating,
       reviewCount: item.reviewCount || item.review_count || item.numberOfReviews,
       categories: item.categories?.map((c: any) => typeof c === 'string' ? c : c.title || c.alias) || [],
-      url: item.url || item.businessUrl,
-      imageUrl: item.imageUrl || item.mainImageUrl || item.image_url,
+      url: item.url || item.directUrl || item.businessUrl,
+      imageUrl: item.imageUrl || item.primaryPhoto || item.mainImageUrl || item.image_url,
     };
 
     // Extract reviews
     const reviewsArray = item.reviews || item.reviewsList || [];
-    const reviews = reviewsArray.map((review: any) => ({
-      yelpReviewId: review.id || review.reviewId || review.reviewAlias || review.review_id || 
-        `${business.yelpId}-${review.author?.userId || review.userId || ''}-${review.date || ''}`,
-      authorName: review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous',
-      authorLocation: review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '',
+    const reviews = reviewsArray.map((review: any, idx: number) => ({
+      yelpReviewId: review.id || review.reviewId || review.reviewAlias || review.review_id ||
+        `${business.yelpId}-${review.author?.userId || review.userId || idx}-${review.date || Date.now()}`,
+      authorName: review.reviewerName || review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous',
+      authorLocation: review.reviewerLocation || review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '',
       yelpUserId: review.author?.userId || review.userId || review.user?.id,
       rating: review.rating || review.stars,
       text: review.text || review.comment || review.reviewText,
@@ -181,6 +289,20 @@ function normalizeResults(actorId: string, items: any[]): any[] {
 
     return { ...business, reviews };
   });
+}
+
+// Helper function to extract Yelp business ID from URL
+function extractYelpIdFromUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const match = url.match(/\/biz\/([^?\/]+)/);
+  return match ? match[1] : undefined;
+}
+
+// Helper function to extract user ID from Yelp user URL
+function extractUserIdFromUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const match = url.match(/userid=([^&]+)/) || url.match(/user_id=([^&]+)/);
+  return match ? match[1] : undefined;
 }
 
 // Main orchestrator function - AI manages retries and fallbacks

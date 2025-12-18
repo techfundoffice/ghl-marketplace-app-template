@@ -1,0 +1,710 @@
+openapi: 3.0.3
+info:
+  title: Calendar API
+  version: 1.0.0
+  description: Calendar and appointment management endpoints
+
+paths:
+  /calendars:
+    get:
+      summary: List calendars
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of calendars
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Calendar'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create calendar
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Sales Consultations
+                description:
+                  type: string
+                timezone:
+                  type: string
+                  example: America/New_York
+                availability:
+                  $ref: '#/components/schemas/Availability'
+                settings:
+                  $ref: '#/components/schemas/CalendarSettings'
+      responses:
+        '201':
+          description: Calendar created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+
+  /calendars/{calendarId}:
+    parameters:
+      - $ref: '#/components/parameters/CalendarIdParam'
+
+    get:
+      summary: Get calendar details
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Calendar details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+
+    patch:
+      summary: Update calendar
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                timezone:
+                  type: string
+                availability:
+                  $ref: '#/components/schemas/Availability'
+                settings:
+                  $ref: '#/components/schemas/CalendarSettings'
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '200':
+          description: Calendar updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+
+    delete:
+      summary: Delete calendar
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Calendar deleted
+
+  /calendars/{calendarId}/availability:
+    parameters:
+      - $ref: '#/components/parameters/CalendarIdParam'
+
+    get:
+      summary: Get calendar availability
+      tags: [Calendar]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: timezone
+          in: query
+          schema:
+            type: string
+            example: America/New_York
+      responses:
+        '200':
+          description: Available time slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        start:
+                          type: string
+                          format: date-time
+                        end:
+                          type: string
+                          format: date-time
+                        available:
+                          type: boolean
+
+  /appointments:
+    get:
+      summary: List appointments
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: calendarId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: contactId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, confirmed, completed, cancelled, no_show]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create appointment
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [calendarId, contactId, startTime, endTime]
+              properties:
+                calendarId:
+                  type: string
+                  format: uuid
+                contactId:
+                  type: string
+                  format: uuid
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+                title:
+                  type: string
+                  example: Sales Consultation
+                description:
+                  type: string
+                location:
+                  type: string
+                  example: Zoom Meeting
+                meetingUrl:
+                  type: string
+                  format: uri
+                assignedTo:
+                  type: string
+                  format: uuid
+                reminders:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [email, sms]
+                      minutesBefore:
+                        type: integer
+                        example: 60
+      responses:
+        '201':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '409':
+          description: Time slot not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /appointments/{appointmentId}:
+    parameters:
+      - $ref: '#/components/parameters/AppointmentIdParam'
+
+    get:
+      summary: Get appointment details
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+
+    patch:
+      summary: Update appointment
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+                title:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: string
+                meetingUrl:
+                  type: string
+                  format: uri
+                status:
+                  type: string
+                  enum: [scheduled, confirmed, completed, cancelled, no_show]
+                cancellationReason:
+                  type: string
+      responses:
+        '200':
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+
+    delete:
+      summary: Delete appointment
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Appointment deleted
+
+  /appointments/{appointmentId}/reschedule:
+    parameters:
+      - $ref: '#/components/parameters/AppointmentIdParam'
+
+    post:
+      summary: Reschedule appointment
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startTime, endTime]
+              properties:
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+                notifyContact:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Appointment rescheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+
+  /appointments/booking:
+    post:
+      summary: Book appointment (public endpoint)
+      tags: [Appointments]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [calendarId, startTime, endTime, contact]
+              properties:
+                calendarId:
+                  type: string
+                  format: uuid
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+                contact:
+                  type: object
+                  required: [firstName, lastName, email]
+                  properties:
+                    firstName:
+                      type: string
+                    lastName:
+                      type: string
+                    email:
+                      type: string
+                      format: email
+                    phone:
+                      type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Appointment booked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CalendarIdParam:
+      name: calendarId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    AppointmentIdParam:
+      name: appointmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Calendar:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        timezone:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        availability:
+          $ref: '#/components/schemas/Availability'
+        settings:
+          $ref: '#/components/schemas/CalendarSettings'
+        bookingUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Availability:
+      type: object
+      properties:
+        monday:
+          $ref: '#/components/schemas/DayAvailability'
+        tuesday:
+          $ref: '#/components/schemas/DayAvailability'
+        wednesday:
+          $ref: '#/components/schemas/DayAvailability'
+        thursday:
+          $ref: '#/components/schemas/DayAvailability'
+        friday:
+          $ref: '#/components/schemas/DayAvailability'
+        saturday:
+          $ref: '#/components/schemas/DayAvailability'
+        sunday:
+          $ref: '#/components/schemas/DayAvailability'
+
+    DayAvailability:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              start:
+                type: string
+                format: time
+                example: "09:00"
+              end:
+                type: string
+                format: time
+                example: "17:00"
+
+    CalendarSettings:
+      type: object
+      properties:
+        duration:
+          type: integer
+          description: Default appointment duration in minutes
+          example: 30
+        buffer:
+          type: integer
+          description: Buffer time between appointments in minutes
+          example: 15
+        minNotice:
+          type: integer
+          description: Minimum notice required in hours
+          example: 24
+        maxAdvance:
+          type: integer
+          description: Maximum days in advance to book
+          example: 90
+        confirmationRequired:
+          type: boolean
+        autoConfirm:
+          type: boolean
+        allowRescheduling:
+          type: boolean
+        allowCancellation:
+          type: boolean
+        cancellationNotice:
+          type: integer
+          description: Minimum hours before appointment to allow cancellation
+          example: 24
+
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        calendarId:
+          type: string
+          format: uuid
+        calendar:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+            phone:
+              type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        title:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        meetingUrl:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [scheduled, confirmed, completed, cancelled, no_show]
+        assignedTo:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        reminders:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [email, sms]
+              minutesBefore:
+                type: integer
+              sent:
+                type: boolean
+        cancellationReason:
+          type: string
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

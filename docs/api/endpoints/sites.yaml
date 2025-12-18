@@ -1,0 +1,889 @@
+openapi: 3.0.3
+info:
+  title: Sites API
+  version: 1.0.0
+  description: Funnel, page, and form builder endpoints
+
+paths:
+  /funnels:
+    get:
+      summary: List funnels
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, archived]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of funnels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Funnel'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create funnel
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Product Launch Funnel
+                description:
+                  type: string
+                domain:
+                  type: string
+                  example: launch.example.com
+                path:
+                  type: string
+                  example: /product-launch
+                seoSettings:
+                  $ref: '#/components/schemas/SeoSettings'
+      responses:
+        '201':
+          description: Funnel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+
+  /funnels/{funnelId}:
+    parameters:
+      - $ref: '#/components/parameters/FunnelIdParam'
+
+    get:
+      summary: Get funnel details
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Funnel details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+
+    patch:
+      summary: Update funnel
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                domain:
+                  type: string
+                path:
+                  type: string
+                status:
+                  type: string
+                  enum: [draft, published, archived]
+                seoSettings:
+                  $ref: '#/components/schemas/SeoSettings'
+      responses:
+        '200':
+          description: Funnel updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+
+    delete:
+      summary: Delete funnel
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Funnel deleted
+
+  /funnels/{funnelId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/FunnelIdParam'
+
+    post:
+      summary: Publish funnel
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Funnel published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Funnel'
+
+  /funnels/{funnelId}/stats:
+    parameters:
+      - $ref: '#/components/parameters/FunnelIdParam'
+
+    get:
+      summary: Get funnel statistics
+      tags: [Funnels]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Funnel statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pageViews:
+                    type: integer
+                  uniqueVisitors:
+                    type: integer
+                  conversions:
+                    type: integer
+                  conversionRate:
+                    type: number
+                    format: float
+                  byPage:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pageId:
+                          type: string
+                          format: uuid
+                        pageName:
+                          type: string
+                        views:
+                          type: integer
+                        conversions:
+                          type: integer
+
+  /pages:
+    get:
+      summary: List pages
+      tags: [Pages]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: funnelId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[type]
+          in: query
+          schema:
+            type: string
+            enum: [landing, sales, opt-in, thank-you, custom]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of pages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Page'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create page
+      tags: [Pages]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, type]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                funnelId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Product Landing Page
+                type:
+                  type: string
+                  enum: [landing, sales, opt-in, thank-you, custom]
+                path:
+                  type: string
+                  example: /landing
+                content:
+                  type: object
+                  description: Page builder JSON
+                  additionalProperties: true
+                seoSettings:
+                  $ref: '#/components/schemas/SeoSettings'
+      responses:
+        '201':
+          description: Page created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+
+  /pages/{pageId}:
+    parameters:
+      - $ref: '#/components/parameters/PageIdParam'
+
+    get:
+      summary: Get page details
+      tags: [Pages]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Page details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+
+    patch:
+      summary: Update page
+      tags: [Pages]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                path:
+                  type: string
+                content:
+                  type: object
+                status:
+                  type: string
+                  enum: [draft, published, archived]
+                seoSettings:
+                  $ref: '#/components/schemas/SeoSettings'
+      responses:
+        '200':
+          description: Page updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+
+    delete:
+      summary: Delete page
+      tags: [Pages]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Page deleted
+
+  /pages/{pageId}/duplicate:
+    parameters:
+      - $ref: '#/components/parameters/PageIdParam'
+
+    post:
+      summary: Duplicate page
+      tags: [Pages]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name for duplicated page
+      responses:
+        '201':
+          description: Page duplicated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page'
+
+  /forms:
+    get:
+      summary: List forms
+      tags: [Forms]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of forms
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Form'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create form
+      tags: [Forms]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, fields]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Lead Capture Form
+                description:
+                  type: string
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FormField'
+                settings:
+                  $ref: '#/components/schemas/FormSettings'
+      responses:
+        '201':
+          description: Form created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+
+  /forms/{formId}:
+    parameters:
+      - $ref: '#/components/parameters/FormIdParam'
+
+    get:
+      summary: Get form details
+      tags: [Forms]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Form details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+
+    patch:
+      summary: Update form
+      tags: [Forms]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FormField'
+                settings:
+                  $ref: '#/components/schemas/FormSettings'
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '200':
+          description: Form updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Form'
+
+    delete:
+      summary: Delete form
+      tags: [Forms]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Form deleted
+
+  /forms/{formId}/submissions:
+    parameters:
+      - $ref: '#/components/parameters/FormIdParam'
+
+    get:
+      summary: Get form submissions
+      tags: [Forms]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Form submissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FormSubmission'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Submit form (public endpoint)
+      tags: [Forms]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: object
+                  additionalProperties: true
+                  description: Form field values
+      responses:
+        '201':
+          description: Form submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormSubmission'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    FunnelIdParam:
+      name: funnelId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageIdParam:
+      name: pageId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    FormIdParam:
+      name: formId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Funnel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        domain:
+          type: string
+        path:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        url:
+          type: string
+          format: uri
+        pages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              order:
+                type: integer
+        seoSettings:
+          $ref: '#/components/schemas/SeoSettings'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+
+    Page:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        funnelId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [landing, sales, opt-in, thank-you, custom]
+        path:
+          type: string
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [draft, published, archived]
+        content:
+          type: object
+          description: Page builder JSON structure
+          additionalProperties: true
+        seoSettings:
+          $ref: '#/components/schemas/SeoSettings'
+        thumbnail:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+
+    Form:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormField'
+        settings:
+          $ref: '#/components/schemas/FormSettings'
+        submissionCount:
+          type: integer
+        embedCode:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FormField:
+      type: object
+      required: [id, type, label]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [text, email, phone, textarea, select, checkbox, radio, file, date, number]
+        label:
+          type: string
+        placeholder:
+          type: string
+        required:
+          type: boolean
+        order:
+          type: integer
+        options:
+          type: array
+          items:
+            type: string
+          description: For select, checkbox, radio fields
+        validation:
+          type: object
+          properties:
+            minLength:
+              type: integer
+            maxLength:
+              type: integer
+            pattern:
+              type: string
+              description: Regex pattern
+            customError:
+              type: string
+
+    FormSettings:
+      type: object
+      properties:
+        submitButtonText:
+          type: string
+          default: Submit
+        successMessage:
+          type: string
+          default: Thank you for your submission!
+        redirectUrl:
+          type: string
+          format: uri
+        sendNotification:
+          type: boolean
+        notificationEmail:
+          type: string
+          format: email
+        createContact:
+          type: boolean
+        addTags:
+          type: array
+          items:
+            type: string
+            format: uuid
+        triggerWorkflow:
+          type: string
+          format: uuid
+
+    FormSubmission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        formId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        data:
+          type: object
+          additionalProperties: true
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        referrer:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SeoSettings:
+      type: object
+      properties:
+        title:
+          type: string
+          example: Best Product of 2025
+        description:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        ogTitle:
+          type: string
+          description: Open Graph title
+        ogDescription:
+          type: string
+        ogImage:
+          type: string
+          format: uri
+        twitterCard:
+          type: string
+          enum: [summary, summary_large_image]
+        robotsIndex:
+          type: boolean
+          default: true
+        robotsFollow:
+          type: boolean
+          default: true
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

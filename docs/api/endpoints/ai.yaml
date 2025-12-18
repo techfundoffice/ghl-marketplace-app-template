@@ -1,0 +1,789 @@
+openapi: 3.0.3
+info:
+  title: AI API
+  version: 1.0.0
+  description: AI agent and conversation endpoints
+
+paths:
+  /ai/agents:
+    get:
+      summary: List AI agents
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: filter[type]
+          in: query
+          schema:
+            type: string
+            enum: [chatbot, voice, assistant]
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, training]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of AI agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIAgent'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create AI agent
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, type]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Customer Support Bot
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [chatbot, voice, assistant]
+                config:
+                  $ref: '#/components/schemas/AIAgentConfig'
+                knowledgeBase:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [url, document, text]
+                      content:
+                        type: string
+      responses:
+        '201':
+          description: AI agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAgent'
+
+  /ai/agents/{agentId}:
+    parameters:
+      - $ref: '#/components/parameters/AgentIdParam'
+
+    get:
+      summary: Get AI agent details
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: AI agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAgent'
+
+    patch:
+      summary: Update AI agent
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                config:
+                  $ref: '#/components/schemas/AIAgentConfig'
+                status:
+                  type: string
+                  enum: [active, inactive, training]
+      responses:
+        '200':
+          description: AI agent updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAgent'
+
+    delete:
+      summary: Delete AI agent
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: AI agent deleted
+
+  /ai/agents/{agentId}/train:
+    parameters:
+      - $ref: '#/components/parameters/AgentIdParam'
+
+    post:
+      summary: Train AI agent
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trainingData]
+              properties:
+                trainingData:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      question:
+                        type: string
+                      answer:
+                        type: string
+                      context:
+                        type: string
+      responses:
+        '200':
+          description: Training started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [queued, training, completed]
+
+  /ai/agents/{agentId}/deploy:
+    parameters:
+      - $ref: '#/components/parameters/AgentIdParam'
+
+    post:
+      summary: Deploy AI agent
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channels:
+                  type: array
+                  items:
+                    type: string
+                    enum: [webchat, whatsapp, facebook, instagram, voice]
+                autoRespond:
+                  type: boolean
+                  default: true
+                handoffRules:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      condition:
+                        type: string
+                        enum: [sentiment_negative, confidence_low, keyword_match, user_request]
+                      threshold:
+                        type: number
+                      action:
+                        type: string
+                        enum: [escalate_to_human, send_notification]
+      responses:
+        '200':
+          description: Agent deployed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAgent'
+
+  /ai/agents/{agentId}/stats:
+    parameters:
+      - $ref: '#/components/parameters/AgentIdParam'
+
+    get:
+      summary: Get AI agent statistics
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: AI agent statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalConversations:
+                    type: integer
+                  resolvedConversations:
+                    type: integer
+                  handoffRate:
+                    type: number
+                    format: float
+                  averageConfidence:
+                    type: number
+                    format: float
+                  averageResponseTime:
+                    type: number
+                    description: Average response time in seconds
+                  topIntents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        intent:
+                          type: string
+                        count:
+                          type: integer
+
+  /ai/conversations:
+    get:
+      summary: List AI conversations
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: agentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, resolved, escalated]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of AI conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIConversation'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Start AI conversation
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentId, contactId]
+              properties:
+                agentId:
+                  type: string
+                  format: uuid
+                contactId:
+                  type: string
+                  format: uuid
+                channel:
+                  type: string
+                  enum: [webchat, whatsapp, facebook, instagram, voice]
+                context:
+                  type: object
+                  description: Initial context
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Conversation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConversation'
+
+  /ai/conversations/{conversationId}:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdParam'
+
+    get:
+      summary: Get AI conversation details
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConversation'
+
+  /ai/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdParam'
+
+    get:
+      summary: Get conversation messages
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: Conversation messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIMessage'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Send message to AI
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  example: What are your business hours?
+                context:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Message sent and response received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userMessage:
+                    $ref: '#/components/schemas/AIMessage'
+                  agentResponse:
+                    $ref: '#/components/schemas/AIMessage'
+
+  /ai/conversations/{conversationId}/escalate:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdParam'
+
+    post:
+      summary: Escalate conversation to human
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                assignTo:
+                  type: string
+                  format: uuid
+                  description: User ID to assign to
+      responses:
+        '200':
+          description: Conversation escalated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConversation'
+
+  /ai/conversations/{conversationId}/resolve:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdParam'
+
+    post:
+      summary: Mark conversation as resolved
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feedback:
+                  type: object
+                  properties:
+                    satisfied:
+                      type: boolean
+                    rating:
+                      type: integer
+                      minimum: 1
+                      maximum: 5
+                    comment:
+                      type: string
+      responses:
+        '200':
+          description: Conversation resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConversation'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AgentIdParam:
+      name: agentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ConversationIdParam:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    AIAgent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [chatbot, voice, assistant]
+        status:
+          type: string
+          enum: [active, inactive, training]
+        config:
+          $ref: '#/components/schemas/AIAgentConfig'
+        stats:
+          type: object
+          properties:
+            totalConversations:
+              type: integer
+            resolutionRate:
+              type: number
+            averageConfidence:
+              type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deployedAt:
+          type: string
+          format: date-time
+
+    AIAgentConfig:
+      type: object
+      properties:
+        model:
+          type: string
+          enum: [gpt-4, gpt-3.5-turbo, claude-3, custom]
+          default: gpt-3.5-turbo
+        temperature:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.7
+        maxTokens:
+          type: integer
+          default: 500
+        systemPrompt:
+          type: string
+          description: System instructions for the AI
+        personality:
+          type: object
+          properties:
+            tone:
+              type: string
+              enum: [professional, friendly, casual, formal]
+            style:
+              type: string
+              enum: [concise, detailed, balanced]
+        languages:
+          type: array
+          items:
+            type: string
+          example: [en, es, fr]
+        fallbackResponses:
+          type: array
+          items:
+            type: string
+        confidenceThreshold:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.7
+          description: Minimum confidence to auto-respond
+        allowedTopics:
+          type: array
+          items:
+            type: string
+        blockedTopics:
+          type: array
+          items:
+            type: string
+
+    AIConversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agentId:
+          type: string
+          format: uuid
+        agent:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        contactId:
+          type: string
+          format: uuid
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        channel:
+          type: string
+          enum: [webchat, whatsapp, facebook, instagram, voice]
+        status:
+          type: string
+          enum: [active, resolved, escalated]
+        messageCount:
+          type: integer
+        averageConfidence:
+          type: number
+          format: float
+        escalatedAt:
+          type: string
+          format: date-time
+        escalatedTo:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        feedback:
+          type: object
+          properties:
+            satisfied:
+              type: boolean
+            rating:
+              type: integer
+            comment:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AIMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, agent, system]
+        content:
+          type: string
+        intent:
+          type: string
+          description: Detected intent
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+              confidence:
+                type: number
+        confidence:
+          type: number
+          format: float
+          description: Agent confidence in response
+        suggestions:
+          type: array
+          items:
+            type: string
+          description: Suggested follow-up questions
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

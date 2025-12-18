@@ -1,0 +1,696 @@
+openapi: 3.0.3
+info:
+  title: Agencies API
+  version: 1.0.0
+  description: Agency management endpoints
+
+paths:
+  /agencies:
+    get:
+      summary: List agencies
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, trial]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            default: -createdAt
+            example: -createdAt
+      responses:
+        '200':
+          description: List of agencies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agency'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create agency
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, plan]
+              properties:
+                name:
+                  type: string
+                  example: Acme Marketing Agency
+                email:
+                  type: string
+                  format: email
+                  example: contact@acmeagency.com
+                phone:
+                  type: string
+                  example: +1-555-987-6543
+                address:
+                  $ref: '#/components/schemas/Address'
+                website:
+                  type: string
+                  format: uri
+                  example: https://acmeagency.com
+                logo:
+                  type: string
+                  format: uri
+                plan:
+                  type: string
+                  enum: [starter, professional, enterprise]
+                  example: professional
+                settings:
+                  $ref: '#/components/schemas/AgencySettings'
+      responses:
+        '201':
+          description: Agency created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agency'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /agencies/{agencyId}:
+    parameters:
+      - $ref: '#/components/parameters/AgencyIdParam'
+
+    get:
+      summary: Get agency details
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Agency details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agency'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update agency
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                address:
+                  $ref: '#/components/schemas/Address'
+                website:
+                  type: string
+                  format: uri
+                logo:
+                  type: string
+                  format: uri
+                settings:
+                  $ref: '#/components/schemas/AgencySettings'
+      responses:
+        '200':
+          description: Agency updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agency'
+
+    delete:
+      summary: Delete agency
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Agency deleted
+        '409':
+          description: Cannot delete agency with active locations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /agencies/{agencyId}/settings:
+    parameters:
+      - $ref: '#/components/parameters/AgencyIdParam'
+
+    get:
+      summary: Get agency settings
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Agency settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencySettings'
+
+    patch:
+      summary: Update agency settings
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgencySettings'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencySettings'
+
+  /agencies/{agencyId}/billing:
+    parameters:
+      - $ref: '#/components/parameters/AgencyIdParam'
+
+    get:
+      summary: Get billing information
+      tags: [Agencies, Billing]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Billing information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInfo'
+
+    patch:
+      summary: Update billing information
+      tags: [Agencies, Billing]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                plan:
+                  type: string
+                  enum: [starter, professional, enterprise]
+                billingCycle:
+                  type: string
+                  enum: [monthly, annual]
+                paymentMethod:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [card, bank_account]
+                    token:
+                      type: string
+                      description: Payment method token from payment processor
+      responses:
+        '200':
+          description: Billing updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingInfo'
+
+  /agencies/{agencyId}/usage:
+    parameters:
+      - $ref: '#/components/parameters/AgencyIdParam'
+
+    get:
+      summary: Get usage statistics
+      tags: [Agencies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Usage statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locations:
+                    type: object
+                    properties:
+                      current:
+                        type: integer
+                      limit:
+                        type: integer
+                  contacts:
+                    type: object
+                    properties:
+                      current:
+                        type: integer
+                      limit:
+                        type: integer
+                  emails:
+                    type: object
+                    properties:
+                      sent:
+                        type: integer
+                      limit:
+                        type: integer
+                  sms:
+                    type: object
+                    properties:
+                      sent:
+                        type: integer
+                      limit:
+                        type: integer
+                  apiCalls:
+                    type: object
+                    properties:
+                      current:
+                        type: integer
+                      limit:
+                        type: integer
+                  storage:
+                    type: object
+                    properties:
+                      used:
+                        type: integer
+                        description: Storage in bytes
+                      limit:
+                        type: integer
+
+  /agencies/{agencyId}/users:
+    parameters:
+      - $ref: '#/components/parameters/AgencyIdParam'
+
+    get:
+      summary: List agency users
+      tags: [Agencies, Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of agency users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgencyUser'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Invite agency user
+      tags: [Agencies, Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, manager, member]
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: User invited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyUser'
+
+  /agencies/{agencyId}/users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/AgencyIdParam'
+      - $ref: '#/components/parameters/UserIdParam'
+
+    patch:
+      summary: Update agency user
+      tags: [Agencies, Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [admin, manager, member]
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyUser'
+
+    delete:
+      summary: Remove agency user
+      tags: [Agencies, Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: User removed
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AgencyIdParam:
+      name: agencyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    UserIdParam:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Agency:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        website:
+          type: string
+          format: uri
+        logo:
+          type: string
+          format: uri
+        plan:
+          type: string
+          enum: [starter, professional, enterprise]
+        status:
+          type: string
+          enum: [active, suspended, trial]
+        settings:
+          $ref: '#/components/schemas/AgencySettings'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        postalCode:
+          type: string
+
+    AgencySettings:
+      type: object
+      properties:
+        timezone:
+          type: string
+          example: America/New_York
+        dateFormat:
+          type: string
+          example: MM/DD/YYYY
+        timeFormat:
+          type: string
+          enum: [12h, 24h]
+        currency:
+          type: string
+          example: USD
+        language:
+          type: string
+          example: en
+        branding:
+          type: object
+          properties:
+            primaryColor:
+              type: string
+              example: "#4F46E5"
+            secondaryColor:
+              type: string
+            logo:
+              type: string
+              format: uri
+            favicon:
+              type: string
+              format: uri
+        notifications:
+          type: object
+          properties:
+            email:
+              type: boolean
+            sms:
+              type: boolean
+            push:
+              type: boolean
+        integrations:
+          type: object
+          properties:
+            stripe:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                publicKey:
+                  type: string
+            twilio:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                accountSid:
+                  type: string
+            sendgrid:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                apiKey:
+                  type: string
+
+    BillingInfo:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [starter, professional, enterprise]
+        billingCycle:
+          type: string
+          enum: [monthly, annual]
+        amount:
+          type: number
+          format: float
+        currency:
+          type: string
+        nextBillingDate:
+          type: string
+          format: date
+        paymentMethod:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [card, bank_account]
+            last4:
+              type: string
+            brand:
+              type: string
+        invoices:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              date:
+                type: string
+                format: date
+              amount:
+                type: number
+              status:
+                type: string
+                enum: [paid, pending, failed]
+              pdfUrl:
+                type: string
+                format: uri
+
+    AgencyUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [admin, manager, member]
+        permissions:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, pending, suspended]
+        lastLogin:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

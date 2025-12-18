@@ -1,0 +1,745 @@
+openapi: 3.0.3
+info:
+  title: Contacts API
+  version: 1.0.0
+  description: Contact management endpoints
+
+paths:
+  /contacts:
+    get:
+      summary: List contacts
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, unsubscribed]
+        - name: filter[tags]
+          in: query
+          schema:
+            type: string
+            description: Comma-separated tag IDs
+        - name: filter[source]
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+            description: Search by name, email, or phone
+        - name: sort
+          in: query
+          schema:
+            type: string
+            default: -createdAt
+            example: -createdAt,firstName
+      responses:
+        '200':
+          description: List of contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contact'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create contact
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, email]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                firstName:
+                  type: string
+                  example: John
+                lastName:
+                  type: string
+                  example: Doe
+                email:
+                  type: string
+                  format: email
+                  example: john.doe@example.com
+                phone:
+                  type: string
+                  example: +1-555-123-4567
+                address:
+                  $ref: '#/components/schemas/Address'
+                company:
+                  type: string
+                  example: Acme Corp
+                tags:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                customFields:
+                  type: object
+                  additionalProperties: true
+                source:
+                  type: string
+                  example: website_form
+                assignedTo:
+                  type: string
+                  format: uuid
+                  description: User ID
+      responses:
+        '201':
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Contact with email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /contacts/bulk:
+    post:
+      summary: Bulk create contacts
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, contacts]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                contacts:
+                  type: array
+                  items:
+                    type: object
+                    required: [email]
+                    properties:
+                      firstName:
+                        type: string
+                      lastName:
+                        type: string
+                      email:
+                        type: string
+                        format: email
+                      phone:
+                        type: string
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                      customFields:
+                        type: object
+                updateOnDuplicate:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Bulk operation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: integer
+                  updated:
+                    type: integer
+                  failed:
+                    type: integer
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        row:
+                          type: integer
+                        email:
+                          type: string
+                        error:
+                          type: string
+
+  /contacts/import:
+    post:
+      summary: Import contacts from file
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [locationId, file]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                file:
+                  type: string
+                  format: binary
+                  description: CSV or Excel file
+                mappings:
+                  type: object
+                  description: Field mappings
+                  additionalProperties:
+                    type: string
+                updateOnDuplicate:
+                  type: boolean
+                  default: false
+      responses:
+        '202':
+          description: Import started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [queued, processing]
+
+  /contacts/export:
+    post:
+      summary: Export contacts
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                format:
+                  type: string
+                  enum: [csv, excel]
+                  default: csv
+                filters:
+                  type: object
+                  properties:
+                    tags:
+                      type: array
+                      items:
+                        type: string
+                    status:
+                      type: string
+                fields:
+                  type: array
+                  items:
+                    type: string
+                  description: Fields to include
+      responses:
+        '200':
+          description: Export file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /contacts/{contactId}:
+    parameters:
+      - $ref: '#/components/parameters/ContactIdParam'
+
+    get:
+      summary: Get contact details
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Contact details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update contact
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                address:
+                  $ref: '#/components/schemas/Address'
+                company:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                customFields:
+                  type: object
+                status:
+                  type: string
+                  enum: [active, inactive, unsubscribed]
+                assignedTo:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Contact updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+
+    delete:
+      summary: Delete contact
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Contact deleted
+
+  /contacts/{contactId}/notes:
+    parameters:
+      - $ref: '#/components/parameters/ContactIdParam'
+
+    get:
+      summary: Get contact notes
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: Contact notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Add note to contact
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  example: Called customer, interested in premium plan
+      responses:
+        '201':
+          description: Note added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+  /contacts/{contactId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/ContactIdParam'
+
+    get:
+      summary: Get contact tasks
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [pending, completed, cancelled]
+      responses:
+        '200':
+          description: Contact tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create task for contact
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, dueDate]
+              properties:
+                title:
+                  type: string
+                  example: Follow up call
+                description:
+                  type: string
+                dueDate:
+                  type: string
+                  format: date-time
+                priority:
+                  type: string
+                  enum: [low, medium, high]
+                assignedTo:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+
+  /contacts/{contactId}/timeline:
+    parameters:
+      - $ref: '#/components/parameters/ContactIdParam'
+
+    get:
+      summary: Get contact activity timeline
+      tags: [Contacts]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+        - name: filter[type]
+          in: query
+          schema:
+            type: string
+            description: Comma-separated activity types
+            example: email,sms,call
+      responses:
+        '200':
+          description: Contact timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TimelineEvent'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ContactIdParam:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        company:
+          type: string
+        avatar:
+          type: string
+          format: uri
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              color:
+                type: string
+        customFields:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [active, inactive, unsubscribed]
+        source:
+          type: string
+        assignedTo:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        lastContactedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        country:
+          type: string
+        postalCode:
+          type: string
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, cancelled]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        dueDate:
+          type: string
+          format: date-time
+        assignedTo:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    TimelineEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [email, sms, call, note, task, opportunity, appointment, workflow]
+        title:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

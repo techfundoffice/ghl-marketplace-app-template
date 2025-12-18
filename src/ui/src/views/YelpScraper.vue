@@ -171,66 +171,46 @@
           </div>
         </div>
 
-        <div class="reviewers-table-section" v-if="allReviewers.length > 0">
+        <div class="reviewers-table-section">
           <div class="table-header">
-            <h2>Reviewers Data Table</h2>
-            <span class="reviewer-count">{{ allReviewers.length }} total reviewers</span>
+            <h2>Reviewers Database</h2>
+            <div class="table-actions">
+              <span class="reviewer-count">{{ gridRowData.length }} total reviewers</span>
+              <input
+                type="text"
+                v-model="quickFilterText"
+                placeholder="Quick filter..."
+                class="quick-filter-input"
+              />
+              <button class="export-btn" @click="exportToCSV">
+                Export CSV
+              </button>
+              <button class="refresh-btn" @click="loadReviewersFromDB" :disabled="tableLoading">
+                <span v-if="tableLoading" class="spinner small"></span>
+                {{ tableLoading ? 'Loading...' : 'Refresh' }}
+              </button>
+            </div>
           </div>
-          <div class="table-container">
-            <table class="reviewers-table">
-              <thead>
-                <tr>
-                  <th @click="sortTable('authorName')" class="sortable">
-                    Name
-                    <span class="sort-icon" v-if="sortColumn === 'authorName'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                  </th>
-                  <th @click="sortTable('authorLocation')" class="sortable">
-                    Location
-                    <span class="sort-icon" v-if="sortColumn === 'authorLocation'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                  </th>
-                  <th @click="sortTable('businessName')" class="sortable">
-                    Business
-                    <span class="sort-icon" v-if="sortColumn === 'businessName'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                  </th>
-                  <th @click="sortTable('rating')" class="sortable">
-                    Rating
-                    <span class="sort-icon" v-if="sortColumn === 'rating'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                  </th>
-                  <th>Enrichment Status</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(reviewer, idx) in sortedReviewers" :key="idx">
-                  <td class="name-cell">{{ reviewer.authorName || 'Anonymous' }}</td>
-                  <td>{{ reviewer.authorLocation || '-' }}</td>
-                  <td>{{ reviewer.businessName }}</td>
-                  <td class="rating-cell">
-                    <span v-for="n in 5" :key="n" class="star" :class="{ filled: n <= reviewer.rating }">★</span>
-                  </td>
-                  <td>
-                    <span v-if="reviewer.enrichedData" class="status-badge enriched">Enriched</span>
-                    <span v-else class="status-badge pending">Pending</span>
-                  </td>
-                  <td>{{ reviewer.enrichedData?.consumer?.email || '-' }}</td>
-                  <td>{{ reviewer.enrichedData?.consumer?.phone || '-' }}</td>
-                  <td>
-                    <button 
-                      v-if="!reviewer.enrichedData"
-                      class="table-enrich-btn"
-                      @click="enrichFromTable(reviewer)"
-                      :disabled="reviewer.enriching"
-                    >
-                      <span v-if="reviewer.enriching" class="spinner small"></span>
-                      {{ reviewer.enriching ? '...' : 'Enrich' }}
-                    </button>
-                    <span v-else class="enriched-check">✓</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div v-if="tableLoading" class="table-loading-overlay">
+            <span class="spinner"></span>
+            <p>Loading reviewers from database...</p>
+          </div>
+
+          <div class="ag-grid-container ag-theme-alpine">
+            <AgGridVue
+              style="width: 100%; height: 600px;"
+              :columnDefs="columnDefs"
+              :rowData="gridRowData"
+              :defaultColDef="defaultColDef"
+              :quickFilterText="quickFilterText"
+              :animateRows="true"
+              :pagination="true"
+              :paginationPageSize="50"
+              rowSelection="multiple"
+              @grid-ready="onGridReady"
+              @cell-value-changed="onCellValueChanged"
+            />
           </div>
         </div>
       </div>
@@ -239,8 +219,13 @@
 </template>
 
 <script>
+import { AgGridVue } from "ag-grid-vue3";
+
 export default {
   name: 'YelpScraper',
+  components: {
+    AgGridVue
+  },
   data() {
     return {
       directUrl: 'https://www.yelp.com/biz/club-cat-irvine?osq=Club+Cat',
@@ -249,16 +234,197 @@ export default {
       searchLimit: '10',
       reviewLimit: '5',
       businesses: [],
+      dbReviewers: [],
+      tableLoading: false,
       isLoading: false,
       error: null,
       logs: [],
       aiMode: false,
-      sortColumn: 'authorName',
-      sortDirection: 'asc'
+      sortColumn: 'reviewerFirstName',
+      sortDirection: 'asc',
+      // AG Grid properties
+      gridApi: null,
+      quickFilterText: '',
+      defaultColDef: {
+        sortable: true,
+        filter: true,
+        resizable: true,
+        editable: true,
+        minWidth: 100,
+        flex: 1
+      },
+      columnDefs: [
+        // Contact Information Group
+        { headerName: 'First Name', field: 'firstName', pinned: 'left', width: 120 },
+        { headerName: 'Last Name', field: 'lastName', pinned: 'left', width: 120 },
+        { headerName: 'Email', field: 'email', width: 180 },
+        { headerName: 'Phone', field: 'phone', width: 140 },
+        { headerName: 'Date Of Birth', field: 'dateOfBirth', width: 120 },
+        { headerName: 'Contact Source', field: 'contactSource', width: 130 },
+        { headerName: 'Contact Type', field: 'contactType', width: 120 },
+        { headerName: 'Where did you hear about us?', field: 'whereDidYouHear', width: 200 },
+        { headerName: 'Discount Code', field: 'discountCode', width: 120 },
+
+        // Cat Boarding Group
+        { headerName: 'Voice AI Cat Room Check-in Date', field: 'catRoomCheckInDate', width: 200 },
+        { headerName: 'Voice AI Cat Room Check-out Date', field: 'catRoomCheckOutDate', width: 200 },
+        { headerName: 'Join Cat Boarding Wait List', field: 'joinCatBoardingWaitList', width: 180 },
+        { headerName: 'Number of Cats', field: 'numberOfCats', width: 120 },
+        { headerName: 'Number of Cat Rooms', field: 'numberOfCatRooms', width: 150 },
+        { headerName: 'Cat Name', field: 'catName', width: 120 },
+        { headerName: 'Cat Breed', field: 'catBreed', width: 120 },
+        { headerName: 'Cat Age', field: 'catAge', width: 100 },
+
+        // Cloudbeds Reservation Group
+        { headerName: 'Cloudbeds Reservation ID', field: 'cloudbedsReservationId', width: 180 },
+        { headerName: 'Cloudbeds Property ID', field: 'cloudbedsPropertyId', width: 160 },
+        { headerName: 'Cloudbeds Reservation Status', field: 'cloudbedsReservationStatus', width: 200 },
+        { headerName: 'Cloudbeds Date Created', field: 'cloudbedsDateCreated', width: 170 },
+        { headerName: 'Cloudbeds Date Modified', field: 'cloudbedsDateModified', width: 180 },
+        { headerName: 'Cloudbeds Guest ID', field: 'cloudbedsGuestId', width: 150 },
+
+        // Billing Address Group
+        { headerName: 'Billing Address - Full Name', field: 'billingFullName', width: 180 },
+        { headerName: 'Billing Address - Phone Number', field: 'billingPhoneNumber', width: 200 },
+        { headerName: 'Billing Address - Full Address', field: 'billingFullAddress', width: 200 },
+        { headerName: 'Billing Address - Country', field: 'billingCountry', width: 170 },
+        { headerName: 'Billing Address - State', field: 'billingState', width: 150 },
+        { headerName: 'Billing Address - Zip Code', field: 'billingZipCode', width: 170 },
+        { headerName: 'Billing Address - City', field: 'billingCity', width: 150 },
+
+        // Services Group
+        { headerName: 'Select Each Service:', field: 'selectEachService', width: 150 },
+
+        // Opportunity/CRM Group
+        { headerName: 'Opportunity Name', field: 'opportunityName', width: 150 },
+        { headerName: 'Pipeline', field: 'pipeline', width: 120 },
+        { headerName: 'Stage', field: 'stage', width: 100 },
+        { headerName: 'Status', field: 'status', width: 100 },
+        { headerName: 'Lead Value', field: 'leadValue', width: 110 },
+        { headerName: 'Opportunity Owner', field: 'opportunityOwner', width: 150 },
+        { headerName: 'Opportunity Source', field: 'opportunitySource', width: 160 },
+        { headerName: 'Lost Reason', field: 'lostReason', width: 120 },
+        { headerName: 'Meeting Notes', field: 'meetingNotes', width: 150 },
+
+        // Personal Details Group
+        { headerName: 'Hair Type', field: 'hairType', width: 100 },
+        { headerName: 'Hair Color', field: 'hairColor', width: 100 },
+
+        // Pet Information Group
+        { headerName: 'Pet Name', field: 'petName', width: 120 },
+        { headerName: 'Pet Breed', field: 'petBreed', width: 120 },
+        { headerName: 'Pet Weight', field: 'petWeight', width: 110 },
+        { headerName: 'Pet Birthday', field: 'petBirthday', width: 120 },
+        { headerName: 'Veterinary Clinic', field: 'veterinaryClinic', width: 150 },
+
+        // Grooming Services Group
+        { headerName: 'Select Your Level Of Grooming Service', field: 'groomingServiceLevel', width: 250 },
+        { headerName: 'Add-On Services (optional)', field: 'addOnServices', width: 180 },
+        { headerName: 'Additional Comments (optional)', field: 'additionalComments', width: 200 },
+        { headerName: 'Day of Week', field: 'dayOfWeek', width: 120 },
+        { headerName: 'What time of day is best for you?', field: 'bestTimeOfDay', width: 220 },
+        { headerName: 'Choose Your Booking Type', field: 'bookingType', width: 180 },
+        { headerName: 'Notes to the Groomer:', field: 'notesToGroomer', width: 170 },
+        { headerName: 'Does your cat need sedation', field: 'catNeedsSedation', width: 200 },
+
+        // Cloudbeds Guest Details Group
+        { headerName: 'Cloudbeds Guest Cell Phone', field: 'cloudbedsGuestCellPhone', width: 190 },
+        { headerName: 'Cloudbeds Guest Address1', field: 'cloudbedsGuestAddress1', width: 180 },
+        { headerName: 'Cloudbeds Guest Address2', field: 'cloudbedsGuestAddress2', width: 180 },
+        { headerName: 'Cloudbeds Guest City', field: 'cloudbedsGuestCity', width: 160 },
+        { headerName: 'Cloudbeds Guest State', field: 'cloudbedsGuestState', width: 160 },
+        { headerName: 'Cloudbeds Guest Country', field: 'cloudbedsGuestCountry', width: 170 },
+        { headerName: 'Cloudbeds Guest Zip', field: 'cloudbedsGuestZip', width: 150 },
+        { headerName: 'Cloudbeds Guest Birth Date', field: 'cloudbedsGuestBirthDate', width: 190 },
+        { headerName: 'Cloudbeds Guest Document Type', field: 'cloudbedsGuestDocumentType', width: 210 },
+        { headerName: 'Cloudbeds Guest Document Number', field: 'cloudbedsGuestDocumentNumber', width: 230 },
+        { headerName: 'Cloudbeds Guest Document Issue Date', field: 'cloudbedsGuestDocumentIssueDate', width: 250 },
+        { headerName: 'Cloudbeds Guest Document Issue Country', field: 'cloudbedsGuestDocumentIssueCountry', width: 270 },
+        { headerName: 'Cloudbeds Guest Document Expiration Date', field: 'cloudbedsGuestDocumentExpirationDate', width: 280 },
+
+        // Cloudbeds Sub Reservation Group
+        { headerName: 'Cloudbeds Sub Reservation ID', field: 'cloudbedsSubReservationId', width: 200 },
+        { headerName: 'Cloudbeds Start Date', field: 'cloudbedsStartDate', width: 160 },
+        { headerName: 'Cloudbeds End Date', field: 'cloudbedsEndDate', width: 150 },
+        { headerName: 'Cloudbeds Assigned Room', field: 'cloudbedsAssignedRoom', width: 180 },
+        { headerName: 'Cloudbeds Room ID', field: 'cloudbedsRoomId', width: 150 },
+        { headerName: 'Cloudbeds Room Name', field: 'cloudbedsRoomName', width: 170 },
+        { headerName: 'Cloudbeds Room Type Name', field: 'cloudbedsRoomTypeName', width: 190 },
+        { headerName: 'Cloudbeds Is Main Guest', field: 'cloudbedsIsMainGuest', width: 170 },
+        { headerName: 'Cloudbeds Estimated Arrival Time', field: 'cloudbedsEstimatedArrivalTime', width: 230 },
+        { headerName: 'Cloudbeds Guest Opt In', field: 'cloudbedsGuestOptIn', width: 170 },
+
+        // Company Information Group
+        { headerName: 'Company Name', field: 'companyName', width: 150 },
+        { headerName: 'Company Phone', field: 'companyPhone', width: 130 },
+        { headerName: 'Company Email', field: 'companyEmail', width: 160 },
+        { headerName: 'Company Website', field: 'companyWebsite', width: 150 },
+        { headerName: 'Company Address', field: 'companyAddress', width: 160 },
+        { headerName: 'Company State', field: 'companyState', width: 130 },
+        { headerName: 'Company City', field: 'companyCity', width: 130 },
+        { headerName: 'Company Description', field: 'companyDescription', width: 170 },
+        { headerName: 'Company Postal Code', field: 'companyPostalCode', width: 160 },
+        { headerName: 'Company Country', field: 'companyCountry', width: 140 },
+        { headerName: 'Select From Below', field: 'selectFromBelow', width: 150 },
+
+        // Business Information Group (from Yelp)
+        { headerName: 'Business Name', field: 'businessName', width: 180 },
+        { headerName: 'Street Address', field: 'streetAddress', width: 180 },
+        { headerName: 'City', field: 'city', width: 120 },
+        { headerName: 'Country', field: 'country', width: 120 },
+        { headerName: 'State', field: 'state', width: 100 },
+        { headerName: 'Postal Code', field: 'postalCode', width: 120 },
+        { headerName: 'Website', field: 'website', width: 180 },
+        { headerName: 'Time Zone', field: 'timeZone', width: 130 },
+
+        // Review Data (from Yelp scraper)
+        { headerName: 'Review Rating', field: 'reviewRating', width: 120 },
+        { headerName: 'Review Date', field: 'reviewDate', width: 120 },
+        { headerName: 'Business Review Count', field: 'businessReviewCount', width: 170 },
+        { headerName: 'Business URL', field: 'businessUrl', width: 200,
+          cellRenderer: (params) => {
+            if (params.value) {
+              return `<a href="${params.value}" target="_blank" style="color: #2563eb;">View</a>`;
+            }
+            return '-';
+          }
+        },
+
+        // Enrichment Status
+        { headerName: 'Enriched', field: 'isEnriched', width: 100,
+          cellRenderer: (params) => params.value ? '✓' : '-',
+          editable: false
+        },
+        { headerName: 'LinkedIn', field: 'linkedin', width: 150 },
+        { headerName: 'Facebook', field: 'facebook', width: 150 },
+        { headerName: 'Instagram', field: 'instagram', width: 150 },
+        { headerName: 'WhatsApp', field: 'whatsapp', width: 130 },
+        { headerName: 'Twitter', field: 'twitter', width: 130 },
+        { headerName: 'Company (Enriched)', field: 'enrichedCompany', width: 160 },
+        { headerName: 'Job Title', field: 'jobTitle', width: 140 },
+
+        // Actions Column
+        { headerName: 'Actions', field: 'actions', width: 120, pinned: 'right',
+          editable: false,
+          sortable: false,
+          filter: false,
+          cellRenderer: (params) => {
+            if (!params.data.isEnriched) {
+              return `<button class="grid-enrich-btn" data-reviewer-id="${params.data.reviewerId}">Enrich</button>`;
+            }
+            return '<span style="color: #10b981; font-weight: bold;">✓</span>';
+          }
+        }
+      ]
     }
   },
   mounted() {
     this.loadBusinesses();
+    this.loadReviewersFromDB();
+  },
+  beforeUnmount() {
+    // Clean up event listener
+    document.removeEventListener('click', this.handleGridButtonClick);
   },
   computed: {
     allReviewers() {
@@ -280,23 +446,201 @@ export default {
       sorted.sort((a, b) => {
         let aVal = a[this.sortColumn];
         let bVal = b[this.sortColumn];
-        
+
         if (aVal == null) aVal = '';
         if (bVal == null) bVal = '';
-        
+
         if (typeof aVal === 'string') {
           aVal = aVal.toLowerCase();
           bVal = bVal.toLowerCase();
         }
-        
+
         if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
         if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
         return 0;
       });
       return sorted;
+    },
+    // Map dbReviewers to AG Grid row data with all columns
+    gridRowData() {
+      return this.dbReviewers.map(r => ({
+        // Map existing data to new column structure
+        reviewerId: r.reviewerId,
+        firstName: r.reviewerFirstName || '',
+        lastName: r.reviewerLastName || r.reviewerLastInitial || '',
+        email: r.email || '',
+        phone: r.phone || '',
+        dateOfBirth: '',
+        contactSource: 'Yelp Review',
+        contactType: 'Reviewer',
+        whereDidYouHear: '',
+        discountCode: '',
+
+        // Cat Boarding (empty by default)
+        catRoomCheckInDate: '',
+        catRoomCheckOutDate: '',
+        joinCatBoardingWaitList: '',
+        numberOfCats: '',
+        numberOfCatRooms: '',
+        catName: '',
+        catBreed: '',
+        catAge: '',
+
+        // Cloudbeds Reservation (empty by default)
+        cloudbedsReservationId: '',
+        cloudbedsPropertyId: '',
+        cloudbedsReservationStatus: '',
+        cloudbedsDateCreated: '',
+        cloudbedsDateModified: '',
+        cloudbedsGuestId: '',
+
+        // Billing Address (empty by default)
+        billingFullName: '',
+        billingPhoneNumber: '',
+        billingFullAddress: '',
+        billingCountry: '',
+        billingState: '',
+        billingZipCode: '',
+        billingCity: '',
+
+        // Services
+        selectEachService: '',
+
+        // Opportunity/CRM (empty by default)
+        opportunityName: '',
+        pipeline: '',
+        stage: '',
+        status: '',
+        leadValue: '',
+        opportunityOwner: '',
+        opportunitySource: '',
+        lostReason: '',
+        meetingNotes: '',
+
+        // Personal Details
+        hairType: '',
+        hairColor: '',
+
+        // Pet Information (empty by default)
+        petName: '',
+        petBreed: '',
+        petWeight: '',
+        petBirthday: '',
+        veterinaryClinic: '',
+
+        // Grooming Services (empty by default)
+        groomingServiceLevel: '',
+        addOnServices: '',
+        additionalComments: '',
+        dayOfWeek: '',
+        bestTimeOfDay: '',
+        bookingType: '',
+        notesToGroomer: '',
+        catNeedsSedation: '',
+
+        // Cloudbeds Guest Details (empty by default)
+        cloudbedsGuestCellPhone: '',
+        cloudbedsGuestAddress1: '',
+        cloudbedsGuestAddress2: '',
+        cloudbedsGuestCity: '',
+        cloudbedsGuestState: '',
+        cloudbedsGuestCountry: '',
+        cloudbedsGuestZip: '',
+        cloudbedsGuestBirthDate: '',
+        cloudbedsGuestDocumentType: '',
+        cloudbedsGuestDocumentNumber: '',
+        cloudbedsGuestDocumentIssueDate: '',
+        cloudbedsGuestDocumentIssueCountry: '',
+        cloudbedsGuestDocumentExpirationDate: '',
+
+        // Cloudbeds Sub Reservation (empty by default)
+        cloudbedsSubReservationId: '',
+        cloudbedsStartDate: '',
+        cloudbedsEndDate: '',
+        cloudbedsAssignedRoom: '',
+        cloudbedsRoomId: '',
+        cloudbedsRoomName: '',
+        cloudbedsRoomTypeName: '',
+        cloudbedsIsMainGuest: '',
+        cloudbedsEstimatedArrivalTime: '',
+        cloudbedsGuestOptIn: '',
+
+        // Company Information (empty by default)
+        companyName: r.company || '',
+        companyPhone: '',
+        companyEmail: '',
+        companyWebsite: '',
+        companyAddress: '',
+        companyState: '',
+        companyCity: '',
+        companyDescription: '',
+        companyPostalCode: '',
+        companyCountry: '',
+        selectFromBelow: '',
+
+        // Business Information (from Yelp)
+        businessName: r.businessName || '',
+        streetAddress: r.businessAddress || '',
+        city: r.businessCity || '',
+        country: '',
+        state: r.businessState || '',
+        postalCode: r.businessZip || '',
+        website: '',
+        timeZone: '',
+
+        // Review Data
+        reviewRating: r.reviewRating || '',
+        reviewDate: r.reviewDate || '',
+        businessReviewCount: r.businessReviewCount || '',
+        businessUrl: r.businessUrl || '',
+
+        // Enrichment Data
+        isEnriched: r.isEnriched || false,
+        linkedin: r.linkedin || '',
+        facebook: r.facebook || '',
+        instagram: r.instagram || '',
+        whatsapp: r.whatsapp || '',
+        twitter: r.twitter || '',
+        enrichedCompany: r.company || '',
+        jobTitle: r.jobTitle || '',
+
+        // For actions
+        enriching: r.enriching || false
+      }));
     }
   },
   methods: {
+    // AG Grid Methods
+    onGridReady(params) {
+      this.gridApi = params.api;
+      // Add click handler for enrich buttons
+      document.addEventListener('click', this.handleGridButtonClick);
+    },
+
+    handleGridButtonClick(event) {
+      if (event.target.classList.contains('grid-enrich-btn')) {
+        const reviewerId = event.target.getAttribute('data-reviewer-id');
+        const reviewer = this.dbReviewers.find(r => r.reviewerId == reviewerId);
+        if (reviewer) {
+          this.enrichReviewerFromDB(reviewer);
+        }
+      }
+    },
+
+    onCellValueChanged(params) {
+      console.log('Cell value changed:', params.colDef.field, params.newValue);
+      // Here you could save the changes to the database if needed
+    },
+
+    exportToCSV() {
+      if (this.gridApi) {
+        this.gridApi.exportDataAsCsv({
+          fileName: `reviewers_export_${new Date().toISOString().split('T')[0]}.csv`
+        });
+        this.addLog('Exported data to CSV', 'success');
+      }
+    },
+
     addLog(message, type = 'info') {
       const now = new Date();
       const time = now.toLocaleTimeString('en-US', { hour12: false });
@@ -325,7 +669,7 @@ export default {
       try {
         const response = await fetch('/api/businesses');
         const data = await response.json();
-        
+
         if (data.success && data.businesses) {
           this.businesses = data.businesses.map(b => ({
             ...b,
@@ -341,6 +685,81 @@ export default {
         }
       } catch (err) {
         console.error('Error loading businesses:', err);
+      }
+    },
+
+    async loadReviewersFromDB() {
+      this.tableLoading = true;
+      try {
+        const response = await fetch('/api/reviewers-full');
+        const data = await response.json();
+
+        if (data.success && data.reviewers) {
+          this.dbReviewers = data.reviewers.map(r => ({
+            ...r,
+            enriching: false
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading reviewers from database:', err);
+      } finally {
+        this.tableLoading = false;
+      }
+    },
+
+    async enrichReviewerFromDB(reviewer) {
+      const idx = this.dbReviewers.findIndex(r => r.reviewerId === reviewer.reviewerId);
+      if (idx === -1) return;
+
+      this.dbReviewers[idx].enriching = true;
+      this.addLog(`Enriching: ${reviewer.reviewerFirstName} ${reviewer.reviewerLastInitial || ''}...`, 'info');
+
+      try {
+        const response = await fetch('/api/enrich-consumer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reviewerId: reviewer.reviewerId,
+            name: `${reviewer.reviewerFirstName} ${reviewer.reviewerLastName || ''}`.trim(),
+            location: [reviewer.city, reviewer.state].filter(Boolean).join(', ')
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to enrich consumer');
+        }
+
+        const enrichment = data.enrichment || data;
+
+        // Update the reviewer in dbReviewers
+        this.dbReviewers[idx] = {
+          ...this.dbReviewers[idx],
+          isEnriched: true,
+          email: enrichment.email || '',
+          phone: enrichment.phone || '',
+          linkedin: enrichment.linkedin || '',
+          company: enrichment.company || '',
+          jobTitle: enrichment.jobTitle || '',
+          enriching: false
+        };
+
+        if (data.alreadyEnriched) {
+          this.addLog(`${reviewer.reviewerFirstName}: Using cached enrichment data`, 'info');
+        } else if (enrichment.success !== false) {
+          const details = [];
+          if (enrichment.email) details.push(`Email: ${enrichment.email}`);
+          if (enrichment.phone) details.push(`Phone: ${enrichment.phone}`);
+          if (enrichment.company) details.push(`Company: ${enrichment.company}`);
+          this.addLog(`${reviewer.reviewerFirstName}: ${details.length > 0 ? details.join(', ') : 'No contact info found'}`, details.length > 0 ? 'success' : 'warning');
+        } else {
+          this.addLog(`${reviewer.reviewerFirstName}: No match found in People Data Labs`, 'warning');
+        }
+      } catch (err) {
+        console.error('Enrich error:', err);
+        this.addLog(`${reviewer.reviewerFirstName}: ${err.message}`, 'error');
+        this.dbReviewers[idx].enriching = false;
       }
     },
 
@@ -433,6 +852,9 @@ export default {
         
         this.addLog(`Total reviewers found: ${totalReviewers}`, 'success');
         this.addLog('Scrape completed successfully!', 'success');
+
+        // Refresh the database table to show new reviewers
+        await this.loadReviewersFromDB();
       } catch (err) {
         this.error = err.message;
         this.addLog(`Error: ${err.message}`, 'error');
@@ -548,10 +970,9 @@ export default {
 }
 
 .scraper-content {
-  display: grid;
-  grid-template-columns: 380px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
-  align-items: start;
 }
 
 .search-card {
@@ -559,8 +980,6 @@ export default {
   border: 1px solid #e0e0e0;
   border-radius: 12px;
   padding: 24px;
-  position: sticky;
-  top: 20px;
 }
 
 .search-card h2 {
@@ -1123,9 +1542,83 @@ export default {
   margin: 0;
 }
 
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .reviewer-count {
   font-size: 13px;
   color: #666;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.table-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.table-loading p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #999;
+  background: #f9fafb;
+  border: 1px dashed #e0e0e0;
+  border-radius: 8px;
+}
+
+.table-empty svg {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.table-empty p {
+  font-size: 16px;
+  font-weight: 500;
+  color: #666;
+  margin: 0 0 8px 0;
+}
+
+.table-empty .hint {
+  font-size: 13px;
+  color: #999;
 }
 
 .table-container {
@@ -1249,13 +1742,119 @@ export default {
   font-weight: bold;
 }
 
-@media (max-width: 1000px) {
-  .scraper-content {
-    grid-template-columns: 1fr;
+.url-cell {
+  white-space: nowrap;
+}
+
+.yelp-link {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #d32323;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.yelp-link:hover {
+  background: #af1d1d;
+}
+
+@media (max-width: 768px) {
+  .yelp-scraper {
+    padding: 16px;
   }
-  
-  .search-card {
-    position: static;
+
+  .form-row {
+    flex-direction: column;
   }
+
+  .form-group.half {
+    width: 100%;
+  }
+}
+
+/* AG Grid Styles */
+.ag-grid-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quick-filter-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 180px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.quick-filter-input:focus {
+  border-color: #2563eb;
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-btn:hover {
+  background: #059669;
+}
+
+/* AG Grid custom styles */
+.ag-theme-alpine {
+  --ag-header-background-color: #f8fafc;
+  --ag-header-foreground-color: #374151;
+  --ag-row-hover-color: #f0f4ff;
+  --ag-selected-row-background-color: #e0e7ff;
+  --ag-font-size: 13px;
+}
+
+.ag-theme-alpine .ag-header-cell {
+  font-weight: 600;
+}
+
+.ag-theme-alpine .ag-cell {
+  display: flex;
+  align-items: center;
+}
+
+/* Grid Enrich Button */
+.grid-enrich-btn {
+  padding: 4px 10px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.grid-enrich-btn:hover {
+  background: #059669;
+}
+
+/* Pagination styles */
+.ag-theme-alpine .ag-paging-panel {
+  border-top: 1px solid #e5e7eb;
+  padding: 8px 16px;
+  background: #f9fafb;
 }
 </style>

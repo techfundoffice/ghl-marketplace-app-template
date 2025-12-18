@@ -9,6 +9,7 @@ import { db } from "../server/db";
 import { businesses, reviewers, reviews, enrichments } from "../shared/schema";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
 import { orchestratedYelpScrape } from "./ai-orchestrator";
+import { createUnifiedYelpScraper } from "./services/yelp-scraper-unified";
 
 const path = __dirname + "/ui/dist/";
 
@@ -167,6 +168,89 @@ app.get("/test-connection", async (req: Request, res: Response) => {
 })
 
 
+/* Seed database with demo reviewers for testing the table UI */
+app.post("/api/seed-demo-data", async (req: Request, res: Response) => {
+  try {
+    console.log("Seeding demo data...");
+    
+    // Create or find Club Cat business
+    let clubCatBiz = await db.select().from(businesses).where(eq(businesses.yelpId, "club-cat-irvine")).limit(1);
+    
+    let businessId: number;
+    if (clubCatBiz.length === 0) {
+      const [inserted] = await db.insert(businesses).values({
+        yelpId: "club-cat-irvine",
+        name: "Club Cat",
+        address: "1360 Reynolds Ave, Irvine, CA 92614",
+        phone: "(949) 988-3999",
+        rating: 5.0,
+        reviewCount: 188,
+        categories: ["Pets", "Pet Services", "Pet Sitting", "Pet Boarding"],
+        url: "https://www.yelp.com/biz/club-cat-irvine",
+      }).returning();
+      businessId = inserted.id;
+    } else {
+      businessId = clubCatBiz[0].id;
+    }
+
+    // Sample reviewers with realistic data
+    const sampleReviewers = [
+      { name: "Sarah M.", location: "Irvine, CA", rating: 5, text: "Best cat boarding in OC! My cats love it here." },
+      { name: "John P.", location: "Newport Beach, CA", rating: 5, text: "Amazing facility, very clean and professional staff." },
+      { name: "Emily T.", location: "Costa Mesa, CA", rating: 5, text: "My cats always come home happy. Highly recommend!" },
+      { name: "Michael R.", location: "Tustin, CA", rating: 4, text: "Great place, a bit pricey but worth it for the quality." },
+      { name: "Jessica L.", location: "Lake Forest, CA", rating: 5, text: "The webcams are such a nice touch. Love watching my kitties!" },
+      { name: "David K.", location: "Laguna Hills, CA", rating: 5, text: "Professional, clean, and my cats love the suites." },
+      { name: "Amanda W.", location: "Mission Viejo, CA", rating: 5, text: "Best cat hotel ever! Staff is incredibly caring." },
+      { name: "Robert C.", location: "Anaheim, CA", rating: 5, text: "Worth every penny. My cats get the royal treatment here." },
+    ];
+
+    const savedReviewers = [];
+    for (const sample of sampleReviewers) {
+      // Check if reviewer already exists
+      const existing = await db.select().from(reviewers)
+        .where(and(eq(reviewers.name, sample.name), eq(reviewers.location, sample.location)))
+        .limit(1);
+
+      let reviewerId: number;
+      if (existing.length > 0) {
+        reviewerId = existing[0].id;
+      } else {
+        const [inserted] = await db.insert(reviewers).values({
+          name: sample.name,
+          location: sample.location,
+          yelpUserId: `demo-${sample.name.replace(/\s/g, '-').toLowerCase()}`,
+        }).returning();
+        reviewerId = inserted.id;
+      }
+
+      // Check if review already exists
+      const existingReview = await db.select().from(reviews)
+        .where(and(eq(reviews.reviewerId, reviewerId), eq(reviews.businessId, businessId)))
+        .limit(1);
+
+      if (existingReview.length === 0) {
+        await db.insert(reviews).values({
+          businessId,
+          reviewerId,
+          rating: sample.rating,
+          text: sample.text,
+          date: new Date().toISOString().split('T')[0],
+          yelpReviewId: `demo-review-${reviewerId}-${businessId}`,
+        });
+      }
+
+      savedReviewers.push({ id: reviewerId, name: sample.name, location: sample.location });
+    }
+
+    console.log(`Seeded ${savedReviewers.length} demo reviewers`);
+    res.json({ success: true, message: `Seeded ${savedReviewers.length} demo reviewers`, reviewers: savedReviewers });
+  } catch (error: any) {
+    console.error("Error seeding demo data:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /* The `app.post("/decrypt-sso",async (req: Request, res: Response) => { ... })` route is used to
 decrypt session details using ssoKey. */
 app.post("/decrypt-sso",async (req: Request, res: Response) => {
@@ -183,14 +267,14 @@ app.post("/decrypt-sso",async (req: Request, res: Response) => {
   }
 })
 
-/* Yelp Scraper endpoint using Apify - tri_angle/yelp-scraper with database persistence */
+/* Yelp Scraper endpoint using Apify - yin/yelp-scraper with database persistence */
 app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
   const { ApifyClient } = require('apify-client');
-  
-  const { searchTerms, location, searchLimit = 10, directUrl } = req.body;
-  
+
+  const { searchTerms, location, searchLimit = 10, directUrl, reviewLimit = 10 } = req.body;
+
   if (!directUrl && (!searchTerms || !location)) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: "Missing required parameters",
       usage: { directUrl: "string (optional)", searchTerms: "string", location: "string", searchLimit: "number (optional)" }
     });
@@ -203,39 +287,198 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
 
   try {
     const client = new ApifyClient({ token: apifyToken });
-    
-    let input: any = {
-      reviewLimit: 10,
-      maxImages: 1,
-      searchLimit: parseInt(searchLimit)
+
+    // Helper functions
+    const extractYelpIdFromUrl = (url: string | undefined): string | undefined => {
+      if (!url) return undefined;
+      const match = url.match(/\/biz\/([^?\/]+)/);
+      return match ? match[1] : undefined;
     };
 
+    const normalizeYelpUrl = (url: string): string => {
+      const match = url.match(/\/biz\/([^?\/]+)/);
+      if (match) {
+        return `https://www.yelp.com/biz/${match[1]}`;
+      }
+      return url;
+    };
+
+    const extractUserIdFromUrl = (url: string | undefined): string | undefined => {
+      if (!url) return undefined;
+      const match = url.match(/userid=([^&]+)/) || url.match(/user_id=([^&]+)/);
+      return match ? match[1] : undefined;
+    };
+
+    let businessItems: any[] = [];
+    let businessUrls: string[] = [];
+
+    // STEP 1: Get businesses (either from direct URL or search)
     if (directUrl) {
-      input.directUrls = [directUrl];
+      // Normalize the URL to strip query params
+      const normalizedUrl = normalizeYelpUrl(directUrl);
+      const yelpId = extractYelpIdFromUrl(normalizedUrl);
+      businessUrls = [normalizedUrl];
+      console.log("Direct URL provided (normalized):", normalizedUrl, "yelpId:", yelpId);
+      
+      // Get business info using the main scraper first
+      const bizInput = {
+        directUrls: [normalizedUrl],
+        reviewLimit: 0,
+        maxImages: 1,
+        searchLimit: 1
+      };
+      
+      console.log("Step 1a: Getting business info with tri_angle/yelp-scraper...");
+      
+      try {
+        const bizRun = await client.actor("tri_angle/yelp-scraper").call(bizInput);
+        const { items: bizItems } = await client.dataset(bizRun.defaultDatasetId).listItems();
+        
+        if (bizItems.length > 0) {
+          console.log("Got business info:", bizItems[0].name);
+          console.log("Raw business data:", JSON.stringify(bizItems[0], null, 2).substring(0, 2000));
+          businessItems = bizItems;
+        } else {
+          console.log("No business info returned, creating minimal object");
+          businessItems = [{
+            bizId: yelpId,
+            name: yelpId?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown Business',
+            directUrl: normalizedUrl,
+            reviews: []
+          }];
+        }
+      } catch (bizError: any) {
+        console.error("Business scraper error:", bizError.message);
+        businessItems = [{
+          bizId: yelpId,
+          name: yelpId?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown Business',
+          directUrl: normalizedUrl,
+          reviews: []
+        }];
+      }
     } else {
-      input.searchTerms = [searchTerms];
-      input.locations = [location];
+      // Use tri_angle/yelp-scraper for search - it works better than yin/yelp-scraper
+      const searchInput = {
+        searchTerms: [searchTerms],
+        locations: [location],
+        searchLimit: parseInt(searchLimit),
+        maxImages: 1,
+        proxy: { useApifyProxy: true }
+      };
+
+      console.log("Step 1: Searching businesses with tri_angle/yelp-scraper:", JSON.stringify(searchInput));
+
+      const searchRun = await client.actor("tri_angle/yelp-scraper").call(searchInput);
+      const { items } = await client.dataset(searchRun.defaultDatasetId).listItems();
+
+      console.log(`Found ${items.length} businesses from search`);
+      businessItems = items;
+
+      // Extract business URLs for review scraping
+      businessUrls = items
+        .map((item: any) => normalizeYelpUrl(item.directUrl || item.url || item.businessUrl || ''))
+        .filter((url: string) => url && url.includes('yelp.com/biz/'));
     }
 
-    console.log("Starting Yelp scrape with tri_angle/yelp-scraper input:", input);
-    
-    const run = await client.actor("tri_angle/yelp-scraper").call(input);
-    
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
-    
-    console.log("Raw Apify items:", JSON.stringify(items[0], null, 2));
-    
+    // STEP 2: Scrape reviews with fallback actors
+    const reviewsPerBusiness = parseInt(reviewLimit) || 10;
+    let reviewItems: any[] = [];
+
+    if (businessUrls.length > 0) {
+      console.log(`Step 2: Scraping reviews from ${businessUrls.length} business URLs...`);
+
+      // List of actors to try in order (with their input formats)
+      const reviewActors = [
+        {
+          name: "web_wanderer/yelp-scraper",
+          getInput: (urls: string[]) => ({
+            startUrls: urls.map(url => ({ url })),
+            maxReviews: reviewsPerBusiness,
+            includeNotRecommendedReviews: false
+          })
+        },
+        {
+          name: "tri_angle/yelp-review-scraper",
+          getInput: (urls: string[]) => ({
+            startUrls: urls.map(url => ({ url })),
+            maxReviewsPerUrl: reviewsPerBusiness,
+            proxy: { useApifyProxy: true }
+          })
+        },
+        {
+          name: "getdataforme/yelp-reviews-scraper",
+          getInput: (urls: string[]) => ({
+            startUrls: urls,
+            maxReviews: reviewsPerBusiness
+          })
+        }
+      ];
+
+      for (const actor of reviewActors) {
+        try {
+          console.log(`Trying review actor: ${actor.name}...`);
+          const input = actor.getInput(businessUrls);
+          console.log("Input:", JSON.stringify(input).substring(0, 500));
+          
+          const reviewRun = await client.actor(actor.name).call(input);
+          const { items } = await client.dataset(reviewRun.defaultDatasetId).listItems();
+          
+          console.log(`${actor.name} returned ${items.length} items`);
+          
+          if (items.length > 0) {
+            console.log("Sample item:", JSON.stringify(items[0], null, 2).substring(0, 1500));
+            reviewItems = items;
+            break; // Success, stop trying other actors
+          }
+        } catch (actorError: any) {
+          console.error(`${actor.name} error:`, actorError.message);
+          // Try next actor
+        }
+      }
+
+      console.log(`Total reviews collected: ${reviewItems.length}`);
+
+      // Merge reviews with businesses
+      for (const review of reviewItems) {
+        const reviewBizUrl = review.businessUrl || review.url || review.directUrl;
+        const reviewBizId = extractYelpIdFromUrl(reviewBizUrl);
+
+        // Find matching business
+        let matchingBiz = businessItems.find((biz: any) => {
+          const bizId = biz.bizId || extractYelpIdFromUrl(biz.directUrl || biz.url);
+          return bizId === reviewBizId;
+        });
+
+        // If no match found by ID, use the first business (for direct URL mode)
+        if (!matchingBiz && businessItems.length > 0) {
+          matchingBiz = businessItems[0];
+        }
+
+        if (matchingBiz) {
+          if (!matchingBiz.reviews) matchingBiz.reviews = [];
+          matchingBiz.reviews.push(review);
+        }
+      }
+    }
+
+    // STEP 3: Save businesses and reviews to database
     const savedBusinesses = [];
 
-    for (const item of items) {
-      const yelpId = item.bizId || item.id || item.businessId || item.alias;
+    for (const item of businessItems) {
+      const yelpId = item.bizId || item.id || item.businessId || item.alias ||
+                     extractYelpIdFromUrl(item.directUrl || item.url);
       const businessName = item.name || item.businessName;
-      const address = typeof item.address === 'string' ? item.address : 
-        (item.address ? `${item.address.addressLine1 || ''}, ${item.address.city || ''}, ${item.address.regionCode || ''} ${item.address.postalCode || ''}`.trim() : 
+      const address = typeof item.address === 'string' ? item.address :
+        (item.address ? `${item.address.addressLine1 || item.address.street || ''}, ${item.address.city || ''}, ${item.address.regionCode || item.address.state || ''} ${item.address.postalCode || ''}`.trim() :
         (item.location ? `${item.location.address1 || ''}, ${item.location.city || ''}, ${item.location.state || ''} ${item.location.zip_code || ''}`.trim() : ''));
-      
+
+      if (!yelpId) {
+        console.warn("Skipping item without yelpId:", item.name);
+        continue;
+      }
+
       const existingBusiness = await db.select().from(businesses).where(eq(businesses.yelpId, yelpId)).limit(1);
-      
+
       let savedBusiness;
       if (existingBusiness.length > 0) {
         savedBusiness = existingBusiness[0];
@@ -245,93 +488,80 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
           name: businessName,
           address,
           phone: item.phone || item.phoneNumber || item.display_phone,
-          rating: item.rating || item.aggregatedRating || item.overallRating,
+          rating: item.aggregatedRating || item.rating || item.overallRating,
           reviewCount: item.reviewCount || item.review_count || item.numberOfReviews,
-          categories: item.categories?.map((c: any) => typeof c === 'string' ? c : c.title || c.alias) || [],
-          url: item.url || item.businessUrl,
-          imageUrl: item.imageUrl || item.mainImageUrl || item.image_url,
+          categories: item.categories?.map((c: any) => typeof c === 'string' ? c : c.title || c.alias) ||
+            (item.type ? [item.type] : []) || (item.cuisine ? [item.cuisine] : []),
+          url: item.directUrl || item.url || item.businessUrl,
+          imageUrl: item.primaryPhoto || item.imageUrl || item.mainImageUrl || item.image_url,
         }).returning();
         savedBusiness = inserted;
       }
 
       const savedReviews = [];
-      
-      // Get business URL for review scraper
-      const businessUrl = item.url || item.businessUrl || directUrl;
-      
-      if (businessUrl) {
-        console.log("Fetching reviews with widbox/yelp-scraper for:", businessUrl);
-        
-        try {
-          const reviewInput = {
-            startUrls: [{ url: businessUrl }],
-            maxReviews: 10,
-            mode: "reviews"
-          };
-          
-          console.log("Review scraper input:", JSON.stringify(reviewInput));
-          const reviewRun = await client.actor("widbox/yelp-scraper").call(reviewInput);
-          const { items: reviewItems } = await client.dataset(reviewRun.defaultDatasetId).listItems();
-          
-          console.log("Review scraper returned", reviewItems.length, "items");
-          if (reviewItems.length > 0) {
-            console.log("Sample review item:", JSON.stringify(reviewItems[0], null, 2));
-          }
-          
-          for (const review of reviewItems) {
-            const authorName = review.userName || review.user?.name || review.authorName || review.author?.name || 'Anonymous';
-            const authorLocation = review.userLocation || review.user?.location || review.authorLocation || review.author?.location || '';
-            const yelpUserId = review.userId || review.user?.id || review.author?.userId;
-            
-            let existingReviewer = await db.select().from(reviewers)
-              .where(and(
-                eq(reviewers.name, authorName),
-                eq(reviewers.location, authorLocation)
-              )).limit(1);
-            
-            let savedReviewer;
-            if (existingReviewer.length > 0) {
-              savedReviewer = existingReviewer[0];
-            } else {
-              const [inserted] = await db.insert(reviewers).values({
-                yelpUserId,
-                name: authorName,
-                location: authorLocation,
-              }).returning();
-              savedReviewer = inserted;
-            }
 
-            const yelpReviewId = review.id || review.reviewId;
-            
-            let existingReview = yelpReviewId ? 
-              await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
-            
-            let savedReview;
-            if (existingReview.length > 0) {
-              savedReview = existingReview[0];
-            } else {
-              const [inserted] = await db.insert(reviews).values({
-                yelpReviewId,
-                businessId: savedBusiness.id,
-                reviewerId: savedReviewer.id,
-                rating: review.rating || review.stars,
-                text: review.text || review.comment || review.reviewText,
-                date: review.date || review.datePublished || review.time_created,
-              }).returning();
-              savedReview = inserted;
-            }
+      // Process reviews (may come from review scraper or embedded in business item)
+      const reviewsArray = item.reviews || item.reviewsList || [];
+      console.log(`Processing ${reviewsArray.length} reviews for business: ${businessName}`);
 
-            savedReviews.push({
-              ...savedReview,
-              reviewer: savedReviewer
-            });
-          }
-          
-          console.log(`Saved ${savedReviews.length} reviews for business: ${businessName}`);
-        } catch (reviewError: any) {
-          console.error("Error fetching reviews:", reviewError.message);
+      for (let idx = 0; idx < reviewsArray.length; idx++) {
+        const review = reviewsArray[idx];
+
+        // Handle different review formats from different scrapers
+        const authorName = review.reviewerName || review.userName || review.author?.name ||
+                           review.user?.name || review.authorName || review.name || 'Anonymous';
+        const authorLocation = review.reviewerLocation || review.userLocation || review.author?.location ||
+                               review.user?.location || review.authorLocation || review.location || '';
+        const yelpUserId = extractUserIdFromUrl(review.reviewerUrl || review.userUrl) || review.userId || review.user_id ||
+                           review.reviewer_id || review.user?.id || review.author?.userId || review.author_id;
+
+        let existingReviewer = await db.select().from(reviewers)
+          .where(and(
+            eq(reviewers.name, authorName),
+            eq(reviewers.location, authorLocation)
+          )).limit(1);
+
+        let savedReviewer;
+        if (existingReviewer.length > 0) {
+          savedReviewer = existingReviewer[0];
+        } else {
+          const [inserted] = await db.insert(reviewers).values({
+            yelpUserId,
+            name: authorName,
+            location: authorLocation,
+          }).returning();
+          savedReviewer = inserted;
         }
+
+        // Generate unique review ID from available fields
+        const yelpReviewId = review.id || review.reviewId || review.review_id || review.reviewAlias ||
+                             `${savedBusiness.yelpId}-${review.reviewerUrl || yelpUserId || idx}-${review.date || Date.now()}`;
+
+        let existingReview = yelpReviewId ?
+          await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
+
+        let savedReview;
+        if (existingReview.length > 0) {
+          savedReview = existingReview[0];
+        } else {
+          const [inserted] = await db.insert(reviews).values({
+            yelpReviewId,
+            businessId: savedBusiness.id,
+            reviewerId: savedReviewer.id,
+            rating: review.rating || review.stars || review.review_rating,
+            text: review.text || review.comment || review.reviewText || review.review_text || review.content || review.reviewContent,
+            date: review.date || review.datePublished || review.time_created || review.review_date,
+          }).returning();
+          savedReview = inserted;
+        }
+
+        savedReviews.push({
+          ...savedReview,
+          reviewer: savedReviewer
+        });
       }
+
+      console.log(`Saved ${savedReviews.length} reviews for business: ${businessName}`);
 
       savedBusinesses.push({
         ...savedBusiness,
@@ -343,9 +573,9 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
     res.json({ success: true, businesses: savedBusinesses });
   } catch (error: any) {
     console.error('Yelp scrape error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to scrape Yelp',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -486,6 +716,200 @@ app.post("/api/yelp-scrape-ai", async (req: Request, res: Response) => {
       error: 'Failed to scrape Yelp',
       details: error.message,
       logs
+    });
+  }
+});
+
+/* Unified Yelp Scraper - Bright Data (Primary) + Apify (Fallback) */
+app.post("/api/yelp-scrape-unified", async (req: Request, res: Response) => {
+  const { searchTerms, location, searchLimit = 10, directUrl, reviewLimit = 10, preferredProvider = 'auto' } = req.body;
+
+  if (!directUrl && (!searchTerms || !location)) {
+    return res.status(400).json({
+      error: "Missing required parameters",
+      usage: {
+        directUrl: "string (optional - direct Yelp URL)",
+        searchTerms: "string (required if no directUrl)",
+        location: "string (required if no directUrl)",
+        searchLimit: "number (optional, default 10)",
+        reviewLimit: "number (optional, default 10)",
+        preferredProvider: "'auto' | 'brightdata' | 'apify' (optional, default 'auto')"
+      }
+    });
+  }
+
+  const logs: { message: string; type: string; time: string }[] = [];
+  const logCallback = (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    logs.push({ message, type, time });
+    console.log(`[Unified-Scraper] [${type}] ${message}`);
+  };
+
+  try {
+    const scraper = createUnifiedYelpScraper(
+      process.env.BRIGHTDATA_API_TOKEN,
+      process.env.APIFY_API_TOKEN,
+      logCallback
+    );
+
+    // Check provider health first
+    const health = await scraper.healthCheck();
+    logCallback(`Provider status - Bright Data: ${health.brightdata.available ? 'Available' : 'Unavailable'}, Apify: ${health.apify.available ? 'Available' : 'Unavailable'}`, 'info');
+
+    // Scrape using unified system (Bright Data first, Apify fallback)
+    const result = await scraper.scrape({
+      directUrl,
+      searchTerms,
+      location,
+      maxBusinesses: parseInt(searchLimit),
+      maxReviewsPerBusiness: parseInt(reviewLimit),
+      preferredProvider: preferredProvider as 'auto' | 'brightdata' | 'apify',
+      onLog: logCallback,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        provider: result.provider,
+        attempts: result.attempts,
+        logs
+      });
+    }
+
+    // Save results to database
+    const savedBusinesses = [];
+
+    for (const business of result.businesses) {
+      const yelpId = business.yelpId;
+
+      const existingBusiness = await db.select().from(businesses).where(eq(businesses.yelpId, yelpId)).limit(1);
+
+      let savedBusiness;
+      if (existingBusiness.length > 0) {
+        savedBusiness = existingBusiness[0];
+      } else {
+        const [inserted] = await db.insert(businesses).values({
+          yelpId,
+          name: business.name,
+          address: business.address,
+          phone: business.phone,
+          rating: business.rating,
+          reviewCount: business.reviewCount,
+          categories: business.categories,
+          url: business.url,
+          imageUrl: business.imageUrl,
+        }).returning();
+        savedBusiness = inserted;
+      }
+
+      const savedReviews = [];
+      for (const review of business.reviews || []) {
+        const authorName = review.authorName || 'Anonymous';
+        const authorLocation = review.authorLocation || '';
+
+        let existingReviewer = await db.select().from(reviewers)
+          .where(and(
+            eq(reviewers.name, authorName),
+            eq(reviewers.location, authorLocation)
+          )).limit(1);
+
+        let savedReviewer;
+        if (existingReviewer.length > 0) {
+          savedReviewer = existingReviewer[0];
+        } else {
+          const [inserted] = await db.insert(reviewers).values({
+            yelpUserId: review.yelpUserId,
+            name: authorName,
+            location: authorLocation,
+          }).returning();
+          savedReviewer = inserted;
+        }
+
+        const yelpReviewId = review.yelpReviewId;
+        let existingReview = yelpReviewId ?
+          await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
+
+        let savedReview;
+        if (existingReview.length > 0) {
+          savedReview = existingReview[0];
+        } else {
+          const [inserted] = await db.insert(reviews).values({
+            yelpReviewId,
+            businessId: savedBusiness.id,
+            reviewerId: savedReviewer.id,
+            rating: review.rating,
+            text: review.text,
+            date: review.date,
+          }).returning();
+          savedReview = inserted;
+        }
+
+        savedReviews.push({
+          ...savedReview,
+          reviewer: savedReviewer
+        });
+      }
+
+      savedBusinesses.push({
+        ...savedBusiness,
+        reviews: savedReviews
+      });
+    }
+
+    logCallback(`Saved ${savedBusinesses.length} businesses to database`, 'success');
+
+    res.json({
+      success: true,
+      provider: result.provider,
+      method: result.method,
+      actorUsed: result.actorUsed,
+      businesses: savedBusinesses,
+      attempts: result.attempts,
+      logs
+    });
+  } catch (error: any) {
+    console.error('Unified Yelp scrape error:', error);
+    res.status(500).json({
+      error: 'Failed to scrape Yelp',
+      details: error.message,
+      logs
+    });
+  }
+});
+
+/* Health check for Yelp scraper providers */
+app.get("/api/yelp-scraper-health", async (req: Request, res: Response) => {
+  try {
+    const scraper = createUnifiedYelpScraper(
+      process.env.BRIGHTDATA_API_TOKEN,
+      process.env.APIFY_API_TOKEN
+    );
+
+    const health = await scraper.healthCheck();
+
+    res.json({
+      success: true,
+      providers: {
+        brightdata: {
+          configured: !!process.env.BRIGHTDATA_API_TOKEN,
+          ...health.brightdata
+        },
+        apify: {
+          configured: !!process.env.APIFY_API_TOKEN,
+          ...health.apify
+        }
+      },
+      recommendation: health.brightdata.available
+        ? 'Use Bright Data for direct URLs, Apify for search queries'
+        : health.apify.available
+          ? 'Use Apify (Bright Data not available)'
+          : 'No providers available - check API tokens'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Health check failed',
+      details: error.message
     });
   }
 });
@@ -671,6 +1095,8 @@ app.get("/api/reviewers-full", async (req: Request, res: Response) => {
       businessId: businesses.id,
       businessName: businesses.name,
       businessAddress: businesses.address,
+      businessUrl: businesses.url,
+      businessReviewCount: businesses.reviewCount,
       reviewId: reviews.id,
       reviewRating: reviews.rating,
       reviewDate: reviews.date,
@@ -733,10 +1159,12 @@ app.get("/api/reviewers-full", async (req: Request, res: Response) => {
       return {
         reviewerId: r.reviewerId,
         businessName: r.businessName || '',
-        address: parsedAddress.street,
-        city: parsedAddress.city,
-        state: parsedAddress.state,
-        zip: parsedAddress.zip,
+        businessUrl: r.businessUrl || '',
+        businessReviewCount: r.businessReviewCount || 0,
+        businessAddress: parsedAddress.street,
+        businessCity: parsedAddress.city,
+        businessState: parsedAddress.state,
+        businessZip: parsedAddress.zip,
         reviewRating: r.reviewRating,
         reviewDate: r.reviewDate,
         reviewerFirstName: parsedName.firstName,

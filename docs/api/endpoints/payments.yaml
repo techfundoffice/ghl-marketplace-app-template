@@ -1,0 +1,938 @@
+openapi: 3.0.3
+info:
+  title: Payments API
+  version: 1.0.0
+  description: Payment, invoice, product, and subscription management endpoints
+
+paths:
+  /products:
+    get:
+      summary: List products
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: filter[type]
+          in: query
+          schema:
+            type: string
+            enum: [one_time, recurring]
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, archived]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create product
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, type, price]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Premium Subscription
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [one_time, recurring]
+                price:
+                  type: number
+                  format: float
+                  example: 99.99
+                currency:
+                  type: string
+                  example: USD
+                billingInterval:
+                  type: string
+                  enum: [day, week, month, year]
+                  description: Required for recurring products
+                trialPeriodDays:
+                  type: integer
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                metadata:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+  /products/{productId}:
+    parameters:
+      - $ref: '#/components/parameters/ProductIdParam'
+
+    get:
+      summary: Get product details
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+    patch:
+      summary: Update product
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                status:
+                  type: string
+                  enum: [active, archived]
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+    delete:
+      summary: Delete product
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Product deleted
+
+  /invoices:
+    get:
+      summary: List invoices
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: contactId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [draft, open, paid, void, uncollectible]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invoice'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create invoice
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, contactId, items]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                contactId:
+                  type: string
+                  format: uuid
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [description, quantity, unitPrice]
+                    properties:
+                      description:
+                        type: string
+                      quantity:
+                        type: integer
+                      unitPrice:
+                        type: number
+                        format: float
+                      productId:
+                        type: string
+                        format: uuid
+                currency:
+                  type: string
+                  example: USD
+                dueDate:
+                  type: string
+                  format: date
+                notes:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+  /invoices/{invoiceId}:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceIdParam'
+
+    get:
+      summary: Get invoice details
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+    patch:
+      summary: Update invoice
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                dueDate:
+                  type: string
+                  format: date
+                notes:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Invoice updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+  /invoices/{invoiceId}/send:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceIdParam'
+
+    post:
+      summary: Send invoice to customer
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice sent
+
+  /invoices/{invoiceId}/void:
+    parameters:
+      - $ref: '#/components/parameters/InvoiceIdParam'
+
+    post:
+      summary: Void invoice
+      tags: [Invoices]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice voided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+  /subscriptions:
+    get:
+      summary: List subscriptions
+      tags: [Subscriptions]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: contactId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, trialing, past_due, canceled, unpaid]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subscription'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create subscription
+      tags: [Subscriptions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, contactId, productId]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                contactId:
+                  type: string
+                  format: uuid
+                productId:
+                  type: string
+                  format: uuid
+                paymentMethodId:
+                  type: string
+                  description: Payment method token
+                trialEnd:
+                  type: string
+                  format: date
+                  description: Override product trial period
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /subscriptions/{subscriptionId}:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionIdParam'
+
+    get:
+      summary: Get subscription details
+      tags: [Subscriptions]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+    patch:
+      summary: Update subscription
+      tags: [Subscriptions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                productId:
+                  type: string
+                  format: uuid
+                paymentMethodId:
+                  type: string
+                metadata:
+                  type: object
+      responses:
+        '200':
+          description: Subscription updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /subscriptions/{subscriptionId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/SubscriptionIdParam'
+
+    post:
+      summary: Cancel subscription
+      tags: [Subscriptions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancelAtPeriodEnd:
+                  type: boolean
+                  default: false
+                  description: Cancel immediately or at period end
+      responses:
+        '200':
+          description: Subscription canceled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /payments:
+    get:
+      summary: List payments
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: contactId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [succeeded, pending, failed, refunded]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create payment
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, contactId, amount, paymentMethodId]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                contactId:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: float
+                currency:
+                  type: string
+                  example: USD
+                paymentMethodId:
+                  type: string
+                  description: Payment method token
+                description:
+                  type: string
+                invoiceId:
+                  type: string
+                  format: uuid
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/{paymentId}:
+    parameters:
+      - $ref: '#/components/parameters/PaymentIdParam'
+
+    get:
+      summary: Get payment details
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/{paymentId}/refund:
+    parameters:
+      - $ref: '#/components/parameters/PaymentIdParam'
+
+    post:
+      summary: Refund payment
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  description: Partial refund amount (omit for full refund)
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Payment refunded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ProductIdParam:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    InvoiceIdParam:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    SubscriptionIdParam:
+      name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PaymentIdParam:
+      name: paymentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [one_time, recurring]
+        price:
+          type: number
+          format: float
+        currency:
+          type: string
+        billingInterval:
+          type: string
+          enum: [day, week, month, year]
+        trialPeriodDays:
+          type: integer
+        status:
+          type: string
+          enum: [active, archived]
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        number:
+          type: string
+          example: INV-2025-001
+        status:
+          type: string
+          enum: [draft, open, paid, void, uncollectible]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              quantity:
+                type: integer
+              unitPrice:
+                type: number
+              amount:
+                type: number
+              productId:
+                type: string
+                format: uuid
+        subtotal:
+          type: number
+          format: float
+        tax:
+          type: number
+          format: float
+        total:
+          type: number
+          format: float
+        amountPaid:
+          type: number
+          format: float
+        amountDue:
+          type: number
+          format: float
+        currency:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        paidAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+        pdfUrl:
+          type: string
+          format: uri
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        product:
+          $ref: '#/components/schemas/Product'
+        status:
+          type: string
+          enum: [active, trialing, past_due, canceled, unpaid]
+        currentPeriodStart:
+          type: string
+          format: date
+        currentPeriodEnd:
+          type: string
+          format: date
+        trialStart:
+          type: string
+          format: date
+        trialEnd:
+          type: string
+          format: date
+        canceledAt:
+          type: string
+          format: date-time
+        cancelAtPeriodEnd:
+          type: boolean
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        contactId:
+          type: string
+          format: uuid
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        amount:
+          type: number
+          format: float
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [succeeded, pending, failed, refunded]
+        description:
+          type: string
+        invoiceId:
+          type: string
+          format: uuid
+        refunded:
+          type: boolean
+        refundAmount:
+          type: number
+          format: float
+        paymentMethod:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [card, bank_account]
+            last4:
+              type: string
+            brand:
+              type: string
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -1,0 +1,676 @@
+openapi: 3.0.3
+info:
+  title: Opportunities API
+  version: 1.0.0
+  description: Opportunity and pipeline management endpoints
+
+paths:
+  /pipelines:
+    get:
+      summary: List pipelines
+      tags: [Pipelines]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of pipelines
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pipeline'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create pipeline
+      tags: [Pipelines]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Sales Pipeline
+                stages:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, order]
+                    properties:
+                      name:
+                        type: string
+                        example: Qualification
+                      order:
+                        type: integer
+                        example: 1
+                      probability:
+                        type: integer
+                        minimum: 0
+                        maximum: 100
+                        example: 25
+      responses:
+        '201':
+          description: Pipeline created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+
+  /pipelines/{pipelineId}:
+    parameters:
+      - $ref: '#/components/parameters/PipelineIdParam'
+
+    get:
+      summary: Get pipeline details
+      tags: [Pipelines]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pipeline details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+
+    patch:
+      summary: Update pipeline
+      tags: [Pipelines]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                stages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      order:
+                        type: integer
+                      probability:
+                        type: integer
+      responses:
+        '200':
+          description: Pipeline updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+
+    delete:
+      summary: Delete pipeline
+      tags: [Pipelines]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Pipeline deleted
+
+  /opportunities:
+    get:
+      summary: List opportunities
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: pipelineId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: stageId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [open, won, lost, abandoned]
+        - name: filter[assignedTo]
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            default: -createdAt
+      responses:
+        '200':
+          description: List of opportunities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Opportunity'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create opportunity
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, pipelineId, stageId, contactId, name]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                pipelineId:
+                  type: string
+                  format: uuid
+                stageId:
+                  type: string
+                  format: uuid
+                contactId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: Enterprise Deal
+                value:
+                  type: number
+                  format: float
+                  example: 50000
+                currency:
+                  type: string
+                  example: USD
+                expectedCloseDate:
+                  type: string
+                  format: date
+                assignedTo:
+                  type: string
+                  format: uuid
+                source:
+                  type: string
+                  example: Website
+                customFields:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Opportunity created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+
+  /opportunities/{opportunityId}:
+    parameters:
+      - $ref: '#/components/parameters/OpportunityIdParam'
+
+    get:
+      summary: Get opportunity details
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Opportunity details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+
+    patch:
+      summary: Update opportunity
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                value:
+                  type: number
+                  format: float
+                expectedCloseDate:
+                  type: string
+                  format: date
+                assignedTo:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [open, won, lost, abandoned]
+                lostReason:
+                  type: string
+                customFields:
+                  type: object
+      responses:
+        '200':
+          description: Opportunity updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+
+    delete:
+      summary: Delete opportunity
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Opportunity deleted
+
+  /opportunities/{opportunityId}/move:
+    parameters:
+      - $ref: '#/components/parameters/OpportunityIdParam'
+
+    post:
+      summary: Move opportunity to different stage
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stageId]
+              properties:
+                stageId:
+                  type: string
+                  format: uuid
+                  description: Target stage ID
+                pipelineId:
+                  type: string
+                  format: uuid
+                  description: Required if moving to different pipeline
+      responses:
+        '200':
+          description: Opportunity moved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Opportunity'
+
+  /opportunities/{opportunityId}/notes:
+    parameters:
+      - $ref: '#/components/parameters/OpportunityIdParam'
+
+    get:
+      summary: Get opportunity notes
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: Opportunity notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Add note to opportunity
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Note added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+  /opportunities/stats:
+    get:
+      summary: Get opportunity statistics
+      tags: [Opportunities]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: pipelineId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Opportunity statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  open:
+                    type: integer
+                  won:
+                    type: integer
+                  lost:
+                    type: integer
+                  totalValue:
+                    type: number
+                  wonValue:
+                    type: number
+                  averageValue:
+                    type: number
+                  conversionRate:
+                    type: number
+                  averageSalesCycle:
+                    type: number
+                    description: Average days to close
+                  byStage:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stageId:
+                          type: string
+                          format: uuid
+                        stageName:
+                          type: string
+                        count:
+                          type: integer
+                        totalValue:
+                          type: number
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PipelineIdParam:
+      name: pipelineId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    OpportunityIdParam:
+      name: opportunityId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              order:
+                type: integer
+              probability:
+                type: integer
+              opportunityCount:
+                type: integer
+              totalValue:
+                type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Opportunity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        pipelineId:
+          type: string
+          format: uuid
+        stageId:
+          type: string
+          format: uuid
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        name:
+          type: string
+        value:
+          type: number
+          format: float
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [open, won, lost, abandoned]
+        expectedCloseDate:
+          type: string
+          format: date
+        actualCloseDate:
+          type: string
+          format: date
+        assignedTo:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        source:
+          type: string
+        lostReason:
+          type: string
+        customFields:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

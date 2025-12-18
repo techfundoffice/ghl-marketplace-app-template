@@ -1,0 +1,565 @@
+openapi: 3.0.3
+info:
+  title: Workflows API
+  version: 1.0.0
+  description: Workflow automation endpoints
+
+paths:
+  /workflows:
+    get:
+      summary: List workflows
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, draft]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workflow'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      summary: Create workflow
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locationId, name, trigger]
+              properties:
+                locationId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: New Contact Welcome Sequence
+                description:
+                  type: string
+                trigger:
+                  $ref: '#/components/schemas/WorkflowTrigger'
+                actions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WorkflowAction'
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+  /workflows/{workflowId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowIdParam'
+
+    get:
+      summary: Get workflow details
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Workflow details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+    patch:
+      summary: Update workflow
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                trigger:
+                  $ref: '#/components/schemas/WorkflowTrigger'
+                actions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WorkflowAction'
+                status:
+                  type: string
+                  enum: [active, inactive, draft]
+      responses:
+        '200':
+          description: Workflow updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+    delete:
+      summary: Delete workflow
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Workflow deleted
+
+  /workflows/{workflowId}/execute:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowIdParam'
+
+    post:
+      summary: Manually execute workflow
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contactId]
+              properties:
+                contactId:
+                  type: string
+                  format: uuid
+                context:
+                  type: object
+                  description: Additional context data
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Workflow execution started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  executionId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [queued, running, completed, failed]
+
+  /workflows/{workflowId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowIdParam'
+
+    post:
+      summary: Activate workflow
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Workflow activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+  /workflows/{workflowId}/deactivate:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowIdParam'
+
+    post:
+      summary: Deactivate workflow
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Workflow deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+  /workflows/{workflowId}/executions:
+    parameters:
+      - $ref: '#/components/parameters/WorkflowIdParam'
+
+    get:
+      summary: List workflow executions
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: filter[status]
+          in: query
+          schema:
+            type: string
+            enum: [queued, running, completed, failed]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/CursorParam'
+      responses:
+        '200':
+          description: Workflow executions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowExecution'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /workflows/executions/{executionId}:
+    parameters:
+      - name: executionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: Get execution details
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowExecution'
+
+  /workflows/stats:
+    get:
+      summary: Get workflow statistics
+      tags: [Workflows]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: locationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: workflowId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Workflow statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalExecutions:
+                    type: integer
+                  successfulExecutions:
+                    type: integer
+                  failedExecutions:
+                    type: integer
+                  averageExecutionTime:
+                    type: number
+                    description: Average execution time in seconds
+                  byWorkflow:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        workflowId:
+                          type: string
+                          format: uuid
+                        workflowName:
+                          type: string
+                        executions:
+                          type: integer
+                        successRate:
+                          type: number
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    WorkflowIdParam:
+      name: workflowId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+        maximum: 100
+
+    CursorParam:
+      name: cursor
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, draft]
+        trigger:
+          $ref: '#/components/schemas/WorkflowTrigger'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowAction'
+        stats:
+          type: object
+          properties:
+            totalExecutions:
+              type: integer
+            successfulExecutions:
+              type: integer
+            failedExecutions:
+              type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WorkflowTrigger:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [contact_created, contact_tagged, opportunity_created, opportunity_stage_changed, form_submitted, email_opened, email_clicked, appointment_scheduled, appointment_cancelled, manual]
+        conditions:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: tags
+              operator:
+                type: string
+                enum: [equals, not_equals, contains, not_contains, greater_than, less_than]
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+        config:
+          type: object
+          description: Trigger-specific configuration
+          additionalProperties: true
+
+    WorkflowAction:
+      type: object
+      required: [type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [send_email, send_sms, add_tag, remove_tag, create_task, send_notification, webhook, wait, condition, update_contact, create_opportunity]
+        order:
+          type: integer
+        config:
+          type: object
+          description: Action-specific configuration
+          additionalProperties: true
+          example:
+            template: "welcome_email"
+            delay: 3600
+        conditions:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              operator:
+                type: string
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+
+    WorkflowExecution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflowId:
+          type: string
+          format: uuid
+        workflow:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        contactId:
+          type: string
+          format: uuid
+        contact:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        executionTime:
+          type: number
+          description: Execution time in seconds
+        actionResults:
+          type: array
+          items:
+            type: object
+            properties:
+              actionId:
+                type: string
+                format: uuid
+              actionType:
+                type: string
+              status:
+                type: string
+                enum: [pending, running, completed, failed, skipped]
+              result:
+                type: object
+                additionalProperties: true
+              error:
+                type: string
+              completedAt:
+                type: string
+                format: date-time
+        error:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+        prevCursor:
+          type: string
+        hasMore:
+          type: boolean
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+            requestId:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

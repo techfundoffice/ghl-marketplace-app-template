@@ -1,0 +1,457 @@
+openapi: 3.0.3
+info:
+  title: GoHighLevel Clone API
+  version: 1.0.0
+  description: |
+    Comprehensive REST API for a GoHighLevel clone platform.
+
+    This API provides complete functionality for managing agencies, locations (sub-accounts),
+    contacts, conversations, opportunities, calendars, workflows, campaigns, payments, sites,
+    and AI agents.
+
+    ## Authentication
+    Most endpoints require authentication using JWT Bearer tokens.
+
+    ## Rate Limiting
+    - Standard: 100 requests/minute
+    - Professional: 500 requests/minute
+    - Enterprise: 2000 requests/minute
+
+    ## Pagination
+    List endpoints support cursor-based pagination with `limit` and `cursor` parameters.
+
+    ## API Versioning
+    The API uses URL-based versioning (/v1). Breaking changes will be introduced in new versions.
+
+  contact:
+    name: API Support
+    email: api-support@gohighlevel-clone.com
+    url: https://docs.gohighlevel-clone.com
+  license:
+    name: Proprietary
+    url: https://gohighlevel-clone.com/terms
+
+servers:
+  - url: https://api.gohighlevel-clone.com/v1
+    description: Production server
+  - url: https://api-staging.gohighlevel-clone.com/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Agencies
+    description: Agency management
+  - name: Locations
+    description: Sub-account/location management
+  - name: Contacts
+    description: Contact management
+  - name: Conversations
+    description: Messaging and conversations
+  - name: Pipelines
+    description: Pipeline management
+  - name: Opportunities
+    description: Opportunity/deal management
+  - name: Calendar
+    description: Calendar management
+  - name: Appointments
+    description: Appointment booking
+  - name: Workflows
+    description: Workflow automation
+  - name: Campaigns
+    description: Marketing campaigns
+  - name: Emails
+    description: Email marketing
+  - name: Products
+    description: Product management
+  - name: Invoices
+    description: Invoice management
+  - name: Subscriptions
+    description: Subscription management
+  - name: Payments
+    description: Payment processing
+  - name: Funnels
+    description: Sales funnel management
+  - name: Pages
+    description: Landing page builder
+  - name: Forms
+    description: Form builder
+  - name: AI
+    description: AI agents and conversations
+
+paths:
+  # Authentication endpoints
+  /auth/register:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1register'
+  /auth/login:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1login'
+  /auth/refresh:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1refresh'
+  /auth/logout:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1logout'
+  /auth/forgot-password:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1forgot-password'
+  /auth/reset-password:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1reset-password'
+  /auth/verify-email:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1verify-email'
+  /auth/sso/google:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1sso~1google'
+  /auth/sso/google/callback:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1sso~1google~1callback'
+  /auth/sso/saml:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1sso~1saml'
+  /auth/me:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1me'
+  /auth/change-password:
+    $ref: './endpoints/auth.yaml#/paths/~1auth~1change-password'
+
+  # Agency endpoints
+  /agencies:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies'
+  /agencies/{agencyId}:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies~1{agencyId}'
+  /agencies/{agencyId}/settings:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies~1{agencyId}~1settings'
+  /agencies/{agencyId}/billing:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies~1{agencyId}~1billing'
+  /agencies/{agencyId}/usage:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies~1{agencyId}~1usage'
+  /agencies/{agencyId}/users:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies~1{agencyId}~1users'
+  /agencies/{agencyId}/users/{userId}:
+    $ref: './endpoints/agencies.yaml#/paths/~1agencies~1{agencyId}~1users~1{userId}'
+
+  # Location endpoints
+  /locations:
+    $ref: './endpoints/locations.yaml#/paths/~1locations'
+  /locations/{locationId}:
+    $ref: './endpoints/locations.yaml#/paths/~1locations~1{locationId}'
+  /locations/{locationId}/settings:
+    $ref: './endpoints/locations.yaml#/paths/~1locations~1{locationId}~1settings'
+  /locations/{locationId}/users:
+    $ref: './endpoints/locations.yaml#/paths/~1locations~1{locationId}~1users'
+  /locations/{locationId}/users/{userId}:
+    $ref: './endpoints/locations.yaml#/paths/~1locations~1{locationId}~1users~1{userId}'
+  /locations/{locationId}/stats:
+    $ref: './endpoints/locations.yaml#/paths/~1locations~1{locationId}~1stats'
+
+  # Contact endpoints
+  /contacts:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts'
+  /contacts/bulk:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1bulk'
+  /contacts/import:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1import'
+  /contacts/export:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1export'
+  /contacts/{contactId}:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1{contactId}'
+  /contacts/{contactId}/notes:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1{contactId}~1notes'
+  /contacts/{contactId}/tasks:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1{contactId}~1tasks'
+  /contacts/{contactId}/timeline:
+    $ref: './endpoints/contacts.yaml#/paths/~1contacts~1{contactId}~1timeline'
+
+  # Conversation endpoints
+  /conversations:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations'
+  /conversations/{conversationId}:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1{conversationId}'
+  /conversations/{conversationId}/messages:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1{conversationId}~1messages'
+  /conversations/{conversationId}/typing:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1{conversationId}~1typing'
+  /conversations/{conversationId}/read:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1{conversationId}~1read'
+  /conversations/channels:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1channels'
+  /conversations/channels/{channelType}/configure:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1channels~1{channelType}~1configure'
+  /conversations/templates:
+    $ref: './endpoints/conversations.yaml#/paths/~1conversations~1templates'
+
+  # Pipeline & Opportunity endpoints
+  /pipelines:
+    $ref: './endpoints/opportunities.yaml#/paths/~1pipelines'
+  /pipelines/{pipelineId}:
+    $ref: './endpoints/opportunities.yaml#/paths/~1pipelines~1{pipelineId}'
+  /opportunities:
+    $ref: './endpoints/opportunities.yaml#/paths/~1opportunities'
+  /opportunities/{opportunityId}:
+    $ref: './endpoints/opportunities.yaml#/paths/~1opportunities~1{opportunityId}'
+  /opportunities/{opportunityId}/move:
+    $ref: './endpoints/opportunities.yaml#/paths/~1opportunities~1{opportunityId}~1move'
+  /opportunities/{opportunityId}/notes:
+    $ref: './endpoints/opportunities.yaml#/paths/~1opportunities~1{opportunityId}~1notes'
+  /opportunities/stats:
+    $ref: './endpoints/opportunities.yaml#/paths/~1opportunities~1stats'
+
+  # Calendar & Appointment endpoints
+  /calendars:
+    $ref: './endpoints/calendar.yaml#/paths/~1calendars'
+  /calendars/{calendarId}:
+    $ref: './endpoints/calendar.yaml#/paths/~1calendars~1{calendarId}'
+  /calendars/{calendarId}/availability:
+    $ref: './endpoints/calendar.yaml#/paths/~1calendars~1{calendarId}~1availability'
+  /appointments:
+    $ref: './endpoints/calendar.yaml#/paths/~1appointments'
+  /appointments/{appointmentId}:
+    $ref: './endpoints/calendar.yaml#/paths/~1appointments~1{appointmentId}'
+  /appointments/{appointmentId}/reschedule:
+    $ref: './endpoints/calendar.yaml#/paths/~1appointments~1{appointmentId}~1reschedule'
+  /appointments/booking:
+    $ref: './endpoints/calendar.yaml#/paths/~1appointments~1booking'
+
+  # Workflow endpoints
+  /workflows:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows'
+  /workflows/{workflowId}:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1{workflowId}'
+  /workflows/{workflowId}/execute:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1{workflowId}~1execute'
+  /workflows/{workflowId}/activate:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1{workflowId}~1activate'
+  /workflows/{workflowId}/deactivate:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1{workflowId}~1deactivate'
+  /workflows/{workflowId}/executions:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1{workflowId}~1executions'
+  /workflows/executions/{executionId}:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1executions~1{executionId}'
+  /workflows/stats:
+    $ref: './endpoints/workflows.yaml#/paths/~1workflows~1stats'
+
+  # Campaign & Email endpoints
+  /campaigns:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns'
+  /campaigns/{campaignId}:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}'
+  /campaigns/{campaignId}/send:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}~1send'
+  /campaigns/{campaignId}/schedule:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}~1schedule'
+  /campaigns/{campaignId}/pause:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}~1pause'
+  /campaigns/{campaignId}/resume:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}~1resume'
+  /campaigns/{campaignId}/test:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}~1test'
+  /campaigns/{campaignId}/stats:
+    $ref: './endpoints/campaigns.yaml#/paths/~1campaigns~1{campaignId}~1stats'
+  /emails:
+    $ref: './endpoints/campaigns.yaml#/paths/~1emails'
+  /emails/{emailId}:
+    $ref: './endpoints/campaigns.yaml#/paths/~1emails~1{emailId}'
+  /email-templates:
+    $ref: './endpoints/campaigns.yaml#/paths/~1email-templates'
+  /email-templates/{templateId}:
+    $ref: './endpoints/campaigns.yaml#/paths/~1email-templates~1{templateId}'
+
+  # Payment endpoints
+  /products:
+    $ref: './endpoints/payments.yaml#/paths/~1products'
+  /products/{productId}:
+    $ref: './endpoints/payments.yaml#/paths/~1products~1{productId}'
+  /invoices:
+    $ref: './endpoints/payments.yaml#/paths/~1invoices'
+  /invoices/{invoiceId}:
+    $ref: './endpoints/payments.yaml#/paths/~1invoices~1{invoiceId}'
+  /invoices/{invoiceId}/send:
+    $ref: './endpoints/payments.yaml#/paths/~1invoices~1{invoiceId}~1send'
+  /invoices/{invoiceId}/void:
+    $ref: './endpoints/payments.yaml#/paths/~1invoices~1{invoiceId}~1void'
+  /subscriptions:
+    $ref: './endpoints/payments.yaml#/paths/~1subscriptions'
+  /subscriptions/{subscriptionId}:
+    $ref: './endpoints/payments.yaml#/paths/~1subscriptions~1{subscriptionId}'
+  /subscriptions/{subscriptionId}/cancel:
+    $ref: './endpoints/payments.yaml#/paths/~1subscriptions~1{subscriptionId}~1cancel'
+  /payments:
+    $ref: './endpoints/payments.yaml#/paths/~1payments'
+  /payments/{paymentId}:
+    $ref: './endpoints/payments.yaml#/paths/~1payments~1{paymentId}'
+  /payments/{paymentId}/refund:
+    $ref: './endpoints/payments.yaml#/paths/~1payments~1{paymentId}~1refund'
+
+  # Sites endpoints
+  /funnels:
+    $ref: './endpoints/sites.yaml#/paths/~1funnels'
+  /funnels/{funnelId}:
+    $ref: './endpoints/sites.yaml#/paths/~1funnels~1{funnelId}'
+  /funnels/{funnelId}/publish:
+    $ref: './endpoints/sites.yaml#/paths/~1funnels~1{funnelId}~1publish'
+  /funnels/{funnelId}/stats:
+    $ref: './endpoints/sites.yaml#/paths/~1funnels~1{funnelId}~1stats'
+  /pages:
+    $ref: './endpoints/sites.yaml#/paths/~1pages'
+  /pages/{pageId}:
+    $ref: './endpoints/sites.yaml#/paths/~1pages~1{pageId}'
+  /pages/{pageId}/duplicate:
+    $ref: './endpoints/sites.yaml#/paths/~1pages~1{pageId}~1duplicate'
+  /forms:
+    $ref: './endpoints/sites.yaml#/paths/~1forms'
+  /forms/{formId}:
+    $ref: './endpoints/sites.yaml#/paths/~1forms~1{formId}'
+  /forms/{formId}/submissions:
+    $ref: './endpoints/sites.yaml#/paths/~1forms~1{formId}~1submissions'
+
+  # AI endpoints
+  /ai/agents:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1agents'
+  /ai/agents/{agentId}:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1agents~1{agentId}'
+  /ai/agents/{agentId}/train:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1agents~1{agentId}~1train'
+  /ai/agents/{agentId}/deploy:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1agents~1{agentId}~1deploy'
+  /ai/agents/{agentId}/stats:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1agents~1{agentId}~1stats'
+  /ai/conversations:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1conversations'
+  /ai/conversations/{conversationId}:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1conversations~1{conversationId}'
+  /ai/conversations/{conversationId}/messages:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1conversations~1{conversationId}~1messages'
+  /ai/conversations/{conversationId}/escalate:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1conversations~1{conversationId}~1escalate'
+  /ai/conversations/{conversationId}/resolve:
+    $ref: './endpoints/ai.yaml#/paths/~1ai~1conversations~1{conversationId}~1resolve'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token authentication. Include the token in the Authorization header:
+        ```
+        Authorization: Bearer <access_token>
+        ```
+
+  responses:
+    BadRequest:
+      description: Bad request - validation errors or malformed request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid request parameters
+              details:
+                - field: email
+                  message: Email is required
+              requestId: req_abc123
+              timestamp: '2025-12-18T10:30:00Z'
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or missing authentication token
+              requestId: req_abc123
+              timestamp: '2025-12-18T10:30:00Z'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per time window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - requestId
+            - timestamp
+          properties:
+            code:
+              type: string
+              description: Error code for programmatic handling
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Invalid request parameters
+            details:
+              type: array
+              description: Detailed validation errors
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+              description: Unique request identifier for debugging
+              example: req_abc123
+            timestamp:
+              type: string
+              format: date-time
+              description: Error occurrence timestamp
+
+    Pagination:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          description: Cursor for next page
+        prevCursor:
+          type: string
+          description: Cursor for previous page
+        hasMore:
+          type: boolean
+          description: Whether more results are available
+        total:
+          type: integer
+          description: Total number of items (may not always be available)
+
+security:
+  - bearerAuth: []

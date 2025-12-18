@@ -574,6 +574,65 @@ app.post("/api/enrich-consumer", async (req: Request, res: Response) => {
   }
 });
 
+/* Get all businesses with reviews and reviewers */
+app.get("/api/businesses", async (req: Request, res: Response) => {
+  try {
+    const allBusinesses = await db.select().from(businesses);
+    
+    const businessesWithReviews = await Promise.all(
+      allBusinesses.map(async (business) => {
+        const businessReviews = await db
+          .select({
+            id: reviews.id,
+            yelpReviewId: reviews.yelpReviewId,
+            businessId: reviews.businessId,
+            reviewerId: reviews.reviewerId,
+            rating: reviews.rating,
+            text: reviews.text,
+            date: reviews.date,
+            createdAt: reviews.createdAt,
+            reviewerName: reviewers.name,
+            reviewerLocation: reviewers.location,
+            reviewerYelpUserId: reviewers.yelpUserId,
+          })
+          .from(reviews)
+          .leftJoin(reviewers, eq(reviews.reviewerId, reviewers.id))
+          .where(eq(reviews.businessId, business.id));
+
+        return {
+          ...business,
+          reviews: businessReviews.map(r => ({
+            id: r.id,
+            yelpReviewId: r.yelpReviewId,
+            businessId: r.businessId,
+            reviewerId: r.reviewerId,
+            rating: r.rating,
+            text: r.text,
+            date: r.date,
+            createdAt: r.createdAt,
+            authorName: r.reviewerName || 'Anonymous',
+            authorLocation: r.reviewerLocation || '',
+            reviewer: {
+              id: r.reviewerId,
+              name: r.reviewerName,
+              location: r.reviewerLocation,
+              yelpUserId: r.reviewerYelpUserId,
+            }
+          }))
+        };
+      })
+    );
+
+    res.json({ success: true, businesses: businessesWithReviews });
+  } catch (error: any) {
+    console.error('Error fetching businesses:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch businesses',
+      details: error.message 
+    });
+  }
+});
+
 /* Get all reviewers with enrichment status */
 app.get("/api/reviewers", async (req: Request, res: Response) => {
   try {

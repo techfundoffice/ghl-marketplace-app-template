@@ -257,6 +257,9 @@ export default {
       sortDirection: 'asc'
     }
   },
+  mounted() {
+    this.loadBusinesses();
+  },
   computed: {
     allReviewers() {
       const reviewers = [];
@@ -318,6 +321,29 @@ export default {
       }
     },
 
+    async loadBusinesses() {
+      try {
+        const response = await fetch('/api/businesses');
+        const data = await response.json();
+        
+        if (data.success && data.businesses) {
+          this.businesses = data.businesses.map(b => ({
+            ...b,
+            reviews: (b.reviews || []).map(r => ({
+              ...r,
+              authorName: r.authorName || r.reviewer?.name || 'Anonymous',
+              authorLocation: r.authorLocation || r.reviewer?.location || '',
+              reviewerId: r.reviewerId || r.reviewer?.id,
+              enriching: false,
+              enrichedData: null
+            }))
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading businesses:', err);
+      }
+    },
+
     async scrapeYelp() {
       if (!this.directUrl && (!this.searchTerms || !this.location)) {
         this.error = 'Please enter a competitor URL or both business category and location';
@@ -327,7 +353,6 @@ export default {
 
       this.isLoading = true;
       this.error = null;
-      this.businesses = [];
       
       this.addLog('Starting Yelp scrape...', 'info');
       
@@ -379,7 +404,7 @@ export default {
         this.addLog('Received response from ' + (this.aiMode ? 'AI scraper' : 'Apify'), 'success');
         this.addLog(`Processing ${data.businesses?.length || 0} businesses...`, 'info');
 
-        this.businesses = data.businesses.map(b => ({
+        const newBusinesses = data.businesses.map(b => ({
           ...b,
           reviews: (b.reviews || []).map(r => ({ 
             ...r, 
@@ -390,6 +415,15 @@ export default {
             enrichedData: null 
           }))
         }));
+
+        newBusinesses.forEach(newBiz => {
+          const existingIndex = this.businesses.findIndex(b => b.id === newBiz.id || b.yelpId === newBiz.yelpId);
+          if (existingIndex >= 0) {
+            this.businesses[existingIndex] = newBiz;
+          } else {
+            this.businesses.push(newBiz);
+          }
+        });
         
         let totalReviewers = 0;
         this.businesses.forEach(b => {

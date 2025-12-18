@@ -633,6 +633,111 @@ app.get("/api/businesses", async (req: Request, res: Response) => {
   }
 });
 
+/* Get all reviewers with full business, review, and enrichment data */
+app.get("/api/reviewers-full", async (req: Request, res: Response) => {
+  try {
+    const fullData = await db.select({
+      reviewerId: reviewers.id,
+      reviewerName: reviewers.name,
+      reviewerLocation: reviewers.location,
+      reviewerYelpUserId: reviewers.yelpUserId,
+      businessId: businesses.id,
+      businessName: businesses.name,
+      businessAddress: businesses.address,
+      reviewId: reviews.id,
+      reviewRating: reviews.rating,
+      reviewDate: reviews.date,
+      reviewText: reviews.text,
+      enrichmentId: enrichments.id,
+      enrichmentSuccess: enrichments.success,
+      enrichmentLikelihood: enrichments.likelihood,
+      email: enrichments.email,
+      phone: enrichments.phone,
+      linkedin: enrichments.linkedin,
+      facebook: enrichments.facebook,
+      instagram: enrichments.instagram,
+      whatsapp: enrichments.whatsapp,
+      twitter: enrichments.twitter,
+      company: enrichments.company,
+      jobTitle: enrichments.jobTitle,
+      enrichmentCity: enrichments.city,
+      enrichmentState: enrichments.state,
+    })
+    .from(reviewers)
+    .leftJoin(reviews, eq(reviewers.id, reviews.reviewerId))
+    .leftJoin(businesses, eq(reviews.businessId, businesses.id))
+    .leftJoin(enrichments, eq(reviewers.id, enrichments.reviewerId));
+
+    const parseReviewerName = (name: string) => {
+      if (!name || name === 'Anonymous') {
+        return { firstName: 'Anonymous', lastInitial: '', lastName: '' };
+      }
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) {
+        return { firstName: parts[0], lastInitial: '', lastName: '' };
+      }
+      const firstName = parts[0];
+      const lastPart = parts[parts.length - 1];
+      if (lastPart.length === 2 && lastPart.endsWith('.')) {
+        return { firstName, lastInitial: lastPart.replace('.', ''), lastName: '' };
+      }
+      const lastName = parts.slice(1).join(' ');
+      const lastInitial = lastName ? lastName.charAt(0).toUpperCase() : '';
+      return { firstName, lastInitial, lastName };
+    };
+
+    const parseAddress = (address: string | null) => {
+      if (!address) return { street: '', city: '', state: '', zip: '' };
+      const parts = address.split(',').map(p => p.trim());
+      if (parts.length >= 3) {
+        const stateZip = parts[parts.length - 1].split(/\s+/);
+        const state = stateZip[0] || '';
+        const zip = stateZip.slice(1).join(' ') || '';
+        const city = parts[parts.length - 2] || '';
+        const street = parts.slice(0, -2).join(', ');
+        return { street, city, state, zip };
+      }
+      return { street: address, city: '', state: '', zip: '' };
+    };
+
+    const formattedData = fullData.map(r => {
+      const parsedName = parseReviewerName(r.reviewerName);
+      const parsedAddress = parseAddress(r.businessAddress);
+      return {
+        reviewerId: r.reviewerId,
+        businessName: r.businessName || '',
+        address: parsedAddress.street,
+        city: parsedAddress.city,
+        state: parsedAddress.state,
+        zip: parsedAddress.zip,
+        reviewRating: r.reviewRating,
+        reviewDate: r.reviewDate,
+        reviewerFirstName: parsedName.firstName,
+        reviewerLastInitial: parsedName.lastInitial,
+        reviewerLastName: parsedName.lastName,
+        isEnriched: r.enrichmentId !== null,
+        email: r.email || '',
+        phone: r.phone || '',
+        linkedin: r.linkedin || '',
+        facebook: r.facebook || '',
+        instagram: r.instagram || '',
+        whatsapp: r.whatsapp || '',
+        twitter: r.twitter || '',
+        company: r.company || '',
+        jobTitle: r.jobTitle || '',
+      };
+    });
+
+    res.json({ success: true, reviewers: formattedData, count: formattedData.length });
+  } catch (error: any) {
+    console.error('Error fetching full reviewers data:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch reviewers data',
+      details: error.message 
+    });
+  }
+});
+
 /* Get all reviewers with enrichment status */
 app.get("/api/reviewers", async (req: Request, res: Response) => {
   try {

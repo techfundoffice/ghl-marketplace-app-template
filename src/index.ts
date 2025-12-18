@@ -254,56 +254,83 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
         savedBusiness = inserted;
       }
 
-      const reviewsArray = item.reviews || item.reviewsList || [];
       const savedReviews = [];
+      
+      // Get business URL for review scraper
+      const businessUrl = item.url || item.businessUrl || directUrl;
+      
+      if (businessUrl) {
+        console.log("Fetching reviews with widbox/yelp-scraper for:", businessUrl);
+        
+        try {
+          const reviewInput = {
+            startUrls: [{ url: businessUrl }],
+            maxReviews: 10,
+            mode: "reviews"
+          };
+          
+          console.log("Review scraper input:", JSON.stringify(reviewInput));
+          const reviewRun = await client.actor("widbox/yelp-scraper").call(reviewInput);
+          const { items: reviewItems } = await client.dataset(reviewRun.defaultDatasetId).listItems();
+          
+          console.log("Review scraper returned", reviewItems.length, "items");
+          if (reviewItems.length > 0) {
+            console.log("Sample review item:", JSON.stringify(reviewItems[0], null, 2));
+          }
+          
+          for (const review of reviewItems) {
+            const authorName = review.userName || review.user?.name || review.authorName || review.author?.name || 'Anonymous';
+            const authorLocation = review.userLocation || review.user?.location || review.authorLocation || review.author?.location || '';
+            const yelpUserId = review.userId || review.user?.id || review.author?.userId;
+            
+            let existingReviewer = await db.select().from(reviewers)
+              .where(and(
+                eq(reviewers.name, authorName),
+                eq(reviewers.location, authorLocation)
+              )).limit(1);
+            
+            let savedReviewer;
+            if (existingReviewer.length > 0) {
+              savedReviewer = existingReviewer[0];
+            } else {
+              const [inserted] = await db.insert(reviewers).values({
+                yelpUserId,
+                name: authorName,
+                location: authorLocation,
+              }).returning();
+              savedReviewer = inserted;
+            }
 
-      for (const review of reviewsArray) {
-        const authorName = review.author?.name || review.userName || review.user?.name || review.authorName || 'Anonymous';
-        const authorLocation = review.author?.location || review.userLocation || review.user?.location || review.authorLocation || '';
-        const yelpUserId = review.author?.userId || review.userId || review.user?.id;
-        
-        let existingReviewer = await db.select().from(reviewers)
-          .where(and(
-            eq(reviewers.name, authorName),
-            eq(reviewers.location, authorLocation)
-          )).limit(1);
-        
-        let savedReviewer;
-        if (existingReviewer.length > 0) {
-          savedReviewer = existingReviewer[0];
-        } else {
-          const [inserted] = await db.insert(reviewers).values({
-            yelpUserId,
-            name: authorName,
-            location: authorLocation,
-          }).returning();
-          savedReviewer = inserted;
+            const yelpReviewId = review.id || review.reviewId;
+            
+            let existingReview = yelpReviewId ? 
+              await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
+            
+            let savedReview;
+            if (existingReview.length > 0) {
+              savedReview = existingReview[0];
+            } else {
+              const [inserted] = await db.insert(reviews).values({
+                yelpReviewId,
+                businessId: savedBusiness.id,
+                reviewerId: savedReviewer.id,
+                rating: review.rating || review.stars,
+                text: review.text || review.comment || review.reviewText,
+                date: review.date || review.datePublished || review.time_created,
+              }).returning();
+              savedReview = inserted;
+            }
+
+            savedReviews.push({
+              ...savedReview,
+              reviewer: savedReviewer
+            });
+          }
+          
+          console.log(`Saved ${savedReviews.length} reviews for business: ${businessName}`);
+        } catch (reviewError: any) {
+          console.error("Error fetching reviews:", reviewError.message);
         }
-
-        const yelpReviewId = review.id || review.reviewId;
-        
-        let existingReview = yelpReviewId ? 
-          await db.select().from(reviews).where(eq(reviews.yelpReviewId, yelpReviewId)).limit(1) : [];
-        
-        let savedReview;
-        if (existingReview.length > 0) {
-          savedReview = existingReview[0];
-        } else {
-          const [inserted] = await db.insert(reviews).values({
-            yelpReviewId,
-            businessId: savedBusiness.id,
-            reviewerId: savedReviewer.id,
-            rating: review.rating || review.stars,
-            text: review.text || review.comment || review.reviewText,
-            date: review.date || review.datePublished || review.time_created,
-          }).returning();
-          savedReview = inserted;
-        }
-
-        savedReviews.push({
-          ...savedReview,
-          reviewer: savedReviewer
-        });
       }
 
       savedBusinesses.push({
@@ -312,7 +339,7 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`Scraped and saved ${savedBusinesses.length} businesses`);
+    console.log(`Scraped and saved ${savedBusinesses.length} businesses with reviews`);
     res.json({ success: true, businesses: savedBusinesses });
   } catch (error: any) {
     console.error('Yelp scrape error:', error);

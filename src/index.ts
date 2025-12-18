@@ -205,12 +205,13 @@ app.post("/api/yelp-scrape", async (req: Request, res: Response) => {
     const client = new ApifyClient({ token: apifyToken });
     
     let input: any = {
-      scrapeReviewerDetails: true,
-      maxItems: parseInt(searchLimit)
+      reviewLimit: 10,
+      maxImages: 1,
+      searchLimit: parseInt(searchLimit)
     };
 
     if (directUrl) {
-      input.startUrls = [{ url: directUrl }];
+      input.directUrls = [directUrl];
     } else {
       input.searchTerms = [searchTerms];
       input.locations = [location];

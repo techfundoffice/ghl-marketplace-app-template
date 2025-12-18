@@ -29,9 +29,9 @@ interface AttemptLog {
 // List of known Yelp scraper actors (free or pay-as-you-go only, no rental required)
 const YELP_ACTORS = [
   { id: 'tri_angle/yelp-scraper', name: 'Triangle Yelp Scraper', priority: 1 },
-  { id: 'curious_coder/yelp-reviews-scraper', name: 'Curious Coder Yelp Reviews', priority: 2 },
-  { id: 'apify/yelp-scraper', name: 'Apify Yelp Scraper', priority: 3 },
-  { id: 'maxcopell/yelp-scraper', name: 'Maxcopell Yelp Scraper', priority: 4 },
+  { id: 'tri_angle/yelp-review-scraper', name: 'Triangle Yelp Review Scraper', priority: 2 },
+  { id: 'web_wanderer/yelp-reviews-scraper', name: 'Web Wanderer Yelp Reviews', priority: 3 },
+  { id: 'agents/yelp-business', name: 'Agents Yelp Business', priority: 4 },
 ];
 
 // AI decides which actor to try next based on error context
@@ -107,26 +107,33 @@ function buildActorInput(actorId: string, directUrl: string, searchTerms?: strin
     baseInput.includeReviews = true;
   } else if (actorId.includes('tri_angle')) {
     if (directUrl) {
-      baseInput.startUrls = [{ url: directUrl }];
+      baseInput.directUrls = [directUrl];
     } else {
       baseInput.searchTerms = [searchTerms];
       baseInput.locations = [location];
     }
-    baseInput.maxItems = limit;
-    baseInput.scrapeReviewerDetails = true;
-  } else if (actorId.includes('curious_coder')) {
+    baseInput.searchLimit = limit;
+    baseInput.reviewLimit = 10;
+    baseInput.maxImages = 1;
+  } else if (actorId.includes('yelp-review-scraper')) {
     if (directUrl) {
-      baseInput.startUrls = [{ url: directUrl }];
+      baseInput.directUrls = [directUrl];
+    } else {
+      baseInput.searchTerms = [searchTerms];
+      baseInput.locations = [location];
+    }
+    baseInput.reviewLimit = limit;
+  } else if (actorId.includes('web_wanderer')) {
+    if (directUrl) {
+      baseInput.startUrls = [directUrl];
     } else {
       baseInput.searchTerms = searchTerms;
       baseInput.location = location;
     }
     baseInput.maxReviews = limit;
-  } else if (actorId.includes('maxcopell')) {
+  } else if (actorId.includes('agents/yelp')) {
     if (directUrl) {
       baseInput.startUrls = [{ url: directUrl }];
-    } else {
-      baseInput.searchUrl = `https://www.yelp.com/search?find_desc=${encodeURIComponent(searchTerms || '')}&find_loc=${encodeURIComponent(location || '')}`;
     }
     baseInput.maxItems = limit;
   } else {

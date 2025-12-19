@@ -1158,6 +1158,18 @@ app.get("/api/reviewers-full", async (req: Request, res: Response) => {
       const parsedAddress = parseAddress(r.businessAddress);
       return {
         reviewerId: r.reviewerId,
+        // Full reviewer name and location (for simplified view)
+        reviewerName: r.reviewerName || 'Anonymous',
+        reviewerLocation: r.reviewerLocation || '',
+        // Parsed name parts
+        reviewerFirstName: parsedName.firstName,
+        reviewerLastInitial: parsedName.lastInitial,
+        reviewerLastName: parsedName.lastName,
+        // Review content (the key data)
+        reviewText: r.reviewText || '',
+        reviewRating: r.reviewRating,
+        reviewDate: r.reviewDate,
+        // Business info
         businessName: r.businessName || '',
         businessUrl: r.businessUrl || '',
         businessReviewCount: r.businessReviewCount || 0,
@@ -1165,11 +1177,7 @@ app.get("/api/reviewers-full", async (req: Request, res: Response) => {
         businessCity: parsedAddress.city,
         businessState: parsedAddress.state,
         businessZip: parsedAddress.zip,
-        reviewRating: r.reviewRating,
-        reviewDate: r.reviewDate,
-        reviewerFirstName: parsedName.firstName,
-        reviewerLastInitial: parsedName.lastInitial,
-        reviewerLastName: parsedName.lastName,
+        // Enrichment data
         isEnriched: r.enrichmentId !== null,
         email: r.email || '',
         phone: r.phone || '',

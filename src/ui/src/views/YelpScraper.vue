@@ -254,50 +254,179 @@ export default {
         flex: 1
       },
       columnDefs: [
-        // Reviewer Name - pinned left for easy reference
-        { headerName: 'Name', field: 'reviewerName', pinned: 'left', width: 150 },
-        { headerName: 'Location', field: 'reviewerLocation', width: 180 },
-
-        // Review Content - the most important data
-        { headerName: 'Review', field: 'reviewText', width: 500, wrapText: true, autoHeight: true,
-          cellStyle: { 'white-space': 'normal', 'line-height': '1.4' }
+        // GROUP 1: Yelp Data
+        {
+          headerName: 'Yelp Data',
+          children: [
+            { headerName: 'Yelp business name', field: 'yelpBusinessName', width: 180, sortable: true, filter: true, pinned: 'left' },
+            { headerName: 'Yelp Review Stars', field: 'yelpReviewStars', width: 120, sortable: true, filter: true, cellRenderer: (params) => params.value ? '★'.repeat(params.value) : '-' },
+            { headerName: 'Yelp Business Address', field: 'yelpBusinessAddress', width: 200, sortable: true, filter: true },
+            { headerName: 'Yelp Business Address 2', field: 'yelpBusinessAddress2', width: 180, sortable: true, filter: true },
+            { headerName: 'Yelp Business City', field: 'yelpBusinessCity', width: 150, sortable: true, filter: true },
+            { headerName: 'Yelp Business State', field: 'yelpBusinessState', width: 120, sortable: true, filter: true },
+            { headerName: 'Yelp Business Zip Code', field: 'yelpBusinessZipCode', width: 140, sortable: true, filter: true }
+          ]
         },
-        { headerName: 'Rating', field: 'reviewRating', width: 80,
-          cellRenderer: (params) => params.value ? '★'.repeat(params.value) : '-'
+        // GROUP 2: Contact Info
+        {
+          headerName: 'Contact Info',
+          children: [
+            { headerName: 'First Name', field: 'firstName', width: 120, sortable: true, filter: true },
+            { headerName: 'Last Name', field: 'lastName', width: 120, sortable: true, filter: true },
+            { headerName: 'Email', field: 'email', width: 200, sortable: true, filter: true },
+            { headerName: 'Phone', field: 'phone', width: 140, sortable: true, filter: true },
+            { headerName: 'Date Of Birth', field: 'dateOfBirth', width: 130, sortable: true, filter: true },
+            { headerName: 'Contact Source', field: 'contactSource', width: 130, sortable: true, filter: true },
+            { headerName: 'Contact Type', field: 'contactType', width: 120, sortable: true, filter: true },
+            { headerName: 'Where did you hear about us?', field: 'whereDidYouHearAboutUs', width: 200, sortable: true, filter: true },
+            { headerName: 'Discount Code', field: 'discountCode', width: 130, sortable: true, filter: true }
+          ]
         },
-        { headerName: 'Date', field: 'reviewDate', width: 110 },
-
-        // Contact Information (for enrichment)
-        { headerName: 'Email', field: 'email', width: 200 },
-        { headerName: 'Phone', field: 'phone', width: 140 },
-        { headerName: 'LinkedIn', field: 'linkedin', width: 180,
-          cellRenderer: (params) => {
-            if (params.value) {
-              return `<a href="${params.value}" target="_blank" style="color: #2563eb;">Profile</a>`;
+        // GROUP 3: Cat Boarding
+        {
+          headerName: 'Cat Boarding',
+          children: [
+            { headerName: 'voice ai cat room check-in date', field: 'voiceAiCatRoomCheckInDate', width: 200, sortable: true, filter: true },
+            { headerName: 'voice ai cat room check-out date', field: 'voiceAiCatRoomCheckOutDate', width: 200, sortable: true, filter: true },
+            { headerName: 'Join Cat Boarding Wait List', field: 'joinCatBoardingWaitList', width: 180, sortable: true, filter: true },
+            { headerName: 'number of cats', field: 'numberOfCats', width: 120, sortable: true, filter: true },
+            { headerName: 'number of cat rooms', field: 'numberOfCatRooms', width: 140, sortable: true, filter: true },
+            { headerName: 'Cat Name', field: 'catName', width: 120, sortable: true, filter: true },
+            { headerName: 'Cat Breed', field: 'catBreed', width: 120, sortable: true, filter: true },
+            { headerName: 'Cat Age', field: 'catAge', width: 100, sortable: true, filter: true }
+          ]
+        },
+        // GROUP 4: Cloudbeds Reservation
+        {
+          headerName: 'Cloudbeds Reservation',
+          children: [
+            { headerName: 'Cloudbeds Reservation ID', field: 'cloudbedsReservationId', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Property ID', field: 'cloudbedsPropertyId', width: 160, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Reservation Status', field: 'cloudbedsReservationStatus', width: 190, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Date Created', field: 'cloudbedsDateCreated', width: 170, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Date Modified', field: 'cloudbedsDateModified', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest ID', field: 'cloudbedsGuestId', width: 150, sortable: true, filter: true }
+          ]
+        },
+        // GROUP 5: Billing Address
+        {
+          headerName: 'Billing Address',
+          children: [
+            { headerName: 'Billing Address - Full Name', field: 'billingAddressFullName', width: 180, sortable: true, filter: true },
+            { headerName: 'Billing Address - Phone Number', field: 'billingAddressPhoneNumber', width: 190, sortable: true, filter: true },
+            { headerName: 'Billing Address - Full Address', field: 'billingAddressFullAddress', width: 200, sortable: true, filter: true },
+            { headerName: 'Billing Address - Country', field: 'billingAddressCountry', width: 160, sortable: true, filter: true },
+            { headerName: 'Billing Address - State', field: 'billingAddressState', width: 150, sortable: true, filter: true },
+            { headerName: 'Billing Address - Zip Code', field: 'billingAddressZipCode', width: 160, sortable: true, filter: true },
+            { headerName: 'Billing Address - City', field: 'billingAddressCity', width: 150, sortable: true, filter: true }
+          ]
+        },
+        // GROUP 6: Services & CRM
+        {
+          headerName: 'Opportunity/CRM',
+          children: [
+            { headerName: 'Select Each Service:', field: 'selectEachService', width: 160, sortable: true, filter: true },
+            { headerName: 'Opportunity Name', field: 'opportunityName', width: 170, sortable: true, filter: true },
+            { headerName: 'Pipeline', field: 'pipeline', width: 120, sortable: true, filter: true },
+            { headerName: 'Stage', field: 'stage', width: 100, sortable: true, filter: true },
+            { headerName: 'Status', field: 'status', width: 100, sortable: true, filter: true },
+            { headerName: 'Lead Value', field: 'leadValue', width: 120, sortable: true, filter: true },
+            { headerName: 'Opportunity Owner', field: 'opportunityOwner', width: 160, sortable: true, filter: true },
+            { headerName: 'Opportunity Source', field: 'opportunitySource', width: 160, sortable: true, filter: true },
+            { headerName: 'Lost Reason', field: 'lostReason', width: 140, sortable: true, filter: true },
+            { headerName: 'Meeting Notes', field: 'meetingNotes', width: 300, sortable: true, filter: true, wrapText: true, autoHeight: true }
+          ]
+        },
+        // GROUP 7: Pet/Grooming
+        {
+          headerName: 'Pet/Grooming',
+          children: [
+            { headerName: 'Hair Type', field: 'hairType', width: 120, sortable: true, filter: true },
+            { headerName: 'Hair Color', field: 'hairColor', width: 120, sortable: true, filter: true },
+            { headerName: 'Pet Name', field: 'petName', width: 120, sortable: true, filter: true },
+            { headerName: 'Pet Breed', field: 'petBreed', width: 120, sortable: true, filter: true },
+            { headerName: 'Pet Weight', field: 'petWeight', width: 110, sortable: true, filter: true },
+            { headerName: 'Pet Birthday', field: 'petBirthday', width: 130, sortable: true, filter: true },
+            { headerName: 'Veterinary Clinic', field: 'veterinaryClinic', width: 160, sortable: true, filter: true },
+            { headerName: 'Select Your Level Of Grooming Service', field: 'selectYourLevelOfGroomingService', width: 240, sortable: true, filter: true },
+            { headerName: 'Add-On Services (optional)', field: 'addOnServicesOptional', width: 180, sortable: true, filter: true },
+            { headerName: 'Additional Comments (optional)', field: 'additionalCommentsOptional', width: 200, sortable: true, filter: true },
+            { headerName: 'Day of Week', field: 'dayOfWeek', width: 120, sortable: true, filter: true },
+            { headerName: 'What time of day is best for you?', field: 'whatTimeOfDayIsBestForYou', width: 200, sortable: true, filter: true },
+            { headerName: 'Choose Your Booking Type', field: 'chooseYourBookingType', width: 180, sortable: true, filter: true },
+            { headerName: 'Notes to the Groomer:', field: 'notesToTheGroomer', width: 180, sortable: true, filter: true },
+            { headerName: 'Does your cat need sedation', field: 'doesYourCatNeedSedation', width: 190, sortable: true, filter: true }
+          ]
+        },
+        // GROUP 8: Cloudbeds Guest
+        {
+          headerName: 'Cloudbeds Guest',
+          children: [
+            { headerName: 'Cloudbeds Guest Cell Phone', field: 'cloudbedsGuestCellPhone', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Address1', field: 'cloudbedsGuestAddress1', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Address2', field: 'cloudbedsGuestAddress2', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest City', field: 'cloudbedsGuestCity', width: 160, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest State', field: 'cloudbedsGuestState', width: 160, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Country', field: 'cloudbedsGuestCountry', width: 170, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Zip', field: 'cloudbedsGuestZip', width: 150, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Birth Date', field: 'cloudbedsGuestBirthDate', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Document Type', field: 'cloudbedsGuestDocumentType', width: 200, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Document Number', field: 'cloudbedsGuestDocumentNumber', width: 210, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Document Issue Date', field: 'cloudbedsGuestDocumentIssueDate', width: 220, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Document Issue Country', field: 'cloudbedsGuestDocumentIssueCountry', width: 240, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Document Expiration Date', field: 'cloudbedsGuestDocumentExpirationDate', width: 250, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Sub Reservation ID', field: 'cloudbedsSubReservationId', width: 200, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Start Date', field: 'cloudbedsStartDate', width: 160, sortable: true, filter: true },
+            { headerName: 'Cloudbeds End Date', field: 'cloudbedsEndDate', width: 160, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Assigned Room', field: 'cloudbedsAssignedRoom', width: 180, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Room ID', field: 'cloudbedsRoomId', width: 150, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Room Name', field: 'cloudbedsRoomName', width: 170, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Room Type Name', field: 'cloudbedsRoomTypeName', width: 190, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Is Main Guest', field: 'cloudbedsIsMainGuest', width: 170, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Estimated Arrival Time', field: 'cloudbedsEstimatedArrivalTime', width: 220, sortable: true, filter: true },
+            { headerName: 'Cloudbeds Guest Opt In', field: 'cloudbedsGuestOptIn', width: 170, sortable: true, filter: true }
+          ]
+        },
+        // GROUP 9: Company/Business Info
+        {
+          headerName: 'Business Info',
+          children: [
+            { headerName: 'Company Name', field: 'companyName', width: 160, sortable: true, filter: true },
+            { headerName: 'Phone', field: 'businessPhone', width: 140, sortable: true, filter: true },
+            { headerName: 'Email', field: 'businessEmail', width: 180, sortable: true, filter: true },
+            { headerName: 'Website', field: 'website', width: 180, sortable: true, filter: true },
+            { headerName: 'Address', field: 'address', width: 200, sortable: true, filter: true },
+            { headerName: 'State', field: 'state', width: 100, sortable: true, filter: true },
+            { headerName: 'City', field: 'city', width: 120, sortable: true, filter: true },
+            { headerName: 'Description', field: 'description', width: 200, sortable: true, filter: true },
+            { headerName: 'Postal Code', field: 'postalCode', width: 120, sortable: true, filter: true },
+            { headerName: 'Country', field: 'country', width: 120, sortable: true, filter: true },
+            { headerName: 'Select From Below', field: 'selectFromBelow', width: 150, sortable: true, filter: true },
+            { headerName: 'Business Name', field: 'businessName', width: 180, sortable: true, filter: true },
+            { headerName: 'Street Address', field: 'streetAddress', width: 200, sortable: true, filter: true },
+            { headerName: 'Time Zone', field: 'timeZone', width: 140, sortable: true, filter: true }
+          ]
+        },
+        // GROUP 10: Actions
+        {
+          headerName: 'Actions',
+          children: [
+            { headerName: 'Enriched', field: 'isEnriched', width: 90,
+              cellRenderer: (params) => params.value ? '✓ Yes' : '-',
+              editable: false
+            },
+            { headerName: 'Actions', field: 'actions', width: 100, pinned: 'right',
+              editable: false,
+              sortable: false,
+              filter: false,
+              cellRenderer: (params) => {
+                if (!params.data.isEnriched) {
+                  return `<button class="grid-enrich-btn" data-reviewer-id="${params.data.reviewerId}">Enrich</button>`;
+                }
+                return '<span style="color: #10b981;">✓</span>';
+              }
             }
-            return '-';
-          }
-        },
-        { headerName: 'Company', field: 'company', width: 150 },
-        { headerName: 'Job Title', field: 'jobTitle', width: 140 },
-
-        // Enrichment Status
-        { headerName: 'Enriched', field: 'isEnriched', width: 90,
-          cellRenderer: (params) => params.value ? '✓ Yes' : '-',
-          editable: false
-        },
-
-        // Actions Column
-        { headerName: 'Actions', field: 'actions', width: 100, pinned: 'right',
-          editable: false,
-          sortable: false,
-          filter: false,
-          cellRenderer: (params) => {
-            if (!params.data.isEnriched) {
-              return `<button class="grid-enrich-btn" data-reviewer-id="${params.data.reviewerId}">Enrich</button>`;
-            }
-            return '<span style="color: #10b981;">✓</span>';
-          }
+          ]
         }
       ]
     }
@@ -345,29 +474,138 @@ export default {
       });
       return sorted;
     },
-    // Map dbReviewers to AG Grid row data - simplified for Club Cat reviews
+    // Map dbReviewers to AG Grid row data - ALL 96 COLUMNS
     gridRowData() {
       return this.dbReviewers.map(r => ({
-        // Core reviewer data
+        // Internal IDs
         reviewerId: r.reviewerId,
-        reviewerName: r.reviewerName || `${r.reviewerFirstName || ''} ${r.reviewerLastName || r.reviewerLastInitial || ''}`.trim() || 'Anonymous',
-        reviewerLocation: r.reviewerLocation || '',
+        enriching: r.enriching || false,
 
-        // Review content - the key data we need
-        reviewText: r.reviewText || '',
-        reviewRating: r.reviewRating || '',
-        reviewDate: r.reviewDate ? new Date(r.reviewDate).toLocaleDateString() : '',
+        // GROUP 1: Yelp Data (7 fields)
+        yelpBusinessName: r.businessName || '',
+        yelpReviewStars: r.reviewRating || '',
+        yelpBusinessAddress: r.businessAddress || '',
+        yelpBusinessAddress2: '',
+        yelpBusinessCity: r.businessCity || '',
+        yelpBusinessState: r.businessState || '',
+        yelpBusinessZipCode: r.businessZip || '',
 
-        // Contact information (from enrichment)
+        // GROUP 2: Contact Info (9 fields)
+        firstName: r.reviewerFirstName || '',
+        lastName: r.reviewerLastName || r.reviewerLastInitial || '',
         email: r.email || '',
         phone: r.phone || '',
-        linkedin: r.linkedin || '',
-        company: r.company || '',
-        jobTitle: r.jobTitle || '',
+        dateOfBirth: '',
+        contactSource: 'Yelp Review',
+        contactType: 'Lead',
+        whereDidYouHearAboutUs: 'Yelp',
+        discountCode: '',
 
-        // Enrichment status
+        // GROUP 3: Cat Boarding (8 fields)
+        voiceAiCatRoomCheckInDate: '',
+        voiceAiCatRoomCheckOutDate: '',
+        joinCatBoardingWaitList: '',
+        numberOfCats: '',
+        numberOfCatRooms: '',
+        catName: '',
+        catBreed: '',
+        catAge: '',
+
+        // GROUP 4: Cloudbeds Reservation (6 fields)
+        cloudbedsReservationId: '',
+        cloudbedsPropertyId: '',
+        cloudbedsReservationStatus: '',
+        cloudbedsDateCreated: '',
+        cloudbedsDateModified: '',
+        cloudbedsGuestId: '',
+
+        // GROUP 5: Billing Address (7 fields)
+        billingAddressFullName: '',
+        billingAddressPhoneNumber: '',
+        billingAddressFullAddress: '',
+        billingAddressCountry: '',
+        billingAddressState: '',
+        billingAddressZipCode: '',
+        billingAddressCity: '',
+
+        // GROUP 6: Opportunity/CRM (10 fields)
+        selectEachService: '',
+        opportunityName: `${r.reviewerFirstName || 'Lead'} - ${r.businessName || 'Yelp Review'}`,
+        pipeline: 'Yelp Reviews',
+        stage: 'New Lead',
+        status: 'Open',
+        leadValue: '',
+        opportunityOwner: '',
+        opportunitySource: 'Yelp',
+        lostReason: '',
+        meetingNotes: r.reviewText || '',
+
+        // GROUP 7: Pet/Grooming (15 fields)
+        hairType: '',
+        hairColor: '',
+        petName: '',
+        petBreed: '',
+        petWeight: '',
+        petBirthday: '',
+        veterinaryClinic: '',
+        selectYourLevelOfGroomingService: '',
+        addOnServicesOptional: '',
+        additionalCommentsOptional: '',
+        dayOfWeek: '',
+        whatTimeOfDayIsBestForYou: '',
+        chooseYourBookingType: '',
+        notesToTheGroomer: '',
+        doesYourCatNeedSedation: '',
+
+        // GROUP 8: Cloudbeds Guest (23 fields)
+        cloudbedsGuestCellPhone: '',
+        cloudbedsGuestAddress1: '',
+        cloudbedsGuestAddress2: '',
+        cloudbedsGuestCity: '',
+        cloudbedsGuestState: '',
+        cloudbedsGuestCountry: '',
+        cloudbedsGuestZip: '',
+        cloudbedsGuestBirthDate: '',
+        cloudbedsGuestDocumentType: '',
+        cloudbedsGuestDocumentNumber: '',
+        cloudbedsGuestDocumentIssueDate: '',
+        cloudbedsGuestDocumentIssueCountry: '',
+        cloudbedsGuestDocumentExpirationDate: '',
+        cloudbedsSubReservationId: '',
+        cloudbedsStartDate: '',
+        cloudbedsEndDate: '',
+        cloudbedsAssignedRoom: '',
+        cloudbedsRoomId: '',
+        cloudbedsRoomName: '',
+        cloudbedsRoomTypeName: '',
+        cloudbedsIsMainGuest: '',
+        cloudbedsEstimatedArrivalTime: '',
+        cloudbedsGuestOptIn: '',
+
+        // GROUP 9: Business Info (14 fields)
+        companyName: r.company || '',
+        businessPhone: r.phone || '',
+        businessEmail: r.email || '',
+        website: r.businessUrl || '',
+        address: r.businessAddress || '',
+        state: r.businessState || '',
+        city: r.businessCity || '',
+        description: '',
+        postalCode: r.businessZip || '',
+        country: 'USA',
+        selectFromBelow: '',
+        businessName: r.businessName || '',
+        streetAddress: r.businessAddress || '',
+        timeZone: '',
+
+        // GROUP 10: Enrichment Status
         isEnriched: !!(r.email || r.phone || r.linkedin),
-        enriching: r.enriching || false
+        linkedin: r.linkedin || '',
+        facebook: r.facebook || '',
+        instagram: r.instagram || '',
+        twitter: r.twitter || '',
+        whatsapp: r.whatsapp || '',
+        jobTitle: r.jobTitle || ''
       }));
     }
   },
@@ -396,10 +634,40 @@ export default {
 
     exportToCSV() {
       if (this.gridApi) {
+        // Export all 96 columns
+        const allColumnKeys = [
+          'yelpBusinessName', 'yelpReviewStars', 'yelpBusinessAddress', 'yelpBusinessAddress2',
+          'yelpBusinessCity', 'yelpBusinessState', 'yelpBusinessZipCode',
+          'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'contactSource',
+          'contactType', 'whereDidYouHearAboutUs', 'discountCode',
+          'voiceAiCatRoomCheckInDate', 'voiceAiCatRoomCheckOutDate', 'joinCatBoardingWaitList',
+          'numberOfCats', 'numberOfCatRooms', 'catName', 'catBreed', 'catAge',
+          'cloudbedsReservationId', 'cloudbedsPropertyId', 'cloudbedsReservationStatus',
+          'cloudbedsDateCreated', 'cloudbedsDateModified', 'cloudbedsGuestId',
+          'billingAddressFullName', 'billingAddressPhoneNumber', 'billingAddressFullAddress',
+          'billingAddressCountry', 'billingAddressState', 'billingAddressZipCode', 'billingAddressCity',
+          'selectEachService', 'opportunityName', 'pipeline', 'stage', 'status', 'leadValue',
+          'opportunityOwner', 'opportunitySource', 'lostReason', 'meetingNotes',
+          'hairType', 'hairColor', 'petName', 'petBreed', 'petWeight', 'petBirthday',
+          'veterinaryClinic', 'selectYourLevelOfGroomingService', 'addOnServicesOptional',
+          'additionalCommentsOptional', 'dayOfWeek', 'whatTimeOfDayIsBestForYou',
+          'chooseYourBookingType', 'notesToTheGroomer', 'doesYourCatNeedSedation',
+          'cloudbedsGuestCellPhone', 'cloudbedsGuestAddress1', 'cloudbedsGuestAddress2',
+          'cloudbedsGuestCity', 'cloudbedsGuestState', 'cloudbedsGuestCountry', 'cloudbedsGuestZip',
+          'cloudbedsGuestBirthDate', 'cloudbedsGuestDocumentType', 'cloudbedsGuestDocumentNumber',
+          'cloudbedsGuestDocumentIssueDate', 'cloudbedsGuestDocumentIssueCountry',
+          'cloudbedsGuestDocumentExpirationDate', 'cloudbedsSubReservationId', 'cloudbedsStartDate',
+          'cloudbedsEndDate', 'cloudbedsAssignedRoom', 'cloudbedsRoomId', 'cloudbedsRoomName',
+          'cloudbedsRoomTypeName', 'cloudbedsIsMainGuest', 'cloudbedsEstimatedArrivalTime',
+          'cloudbedsGuestOptIn', 'companyName', 'businessPhone', 'businessEmail', 'website',
+          'address', 'state', 'city', 'description', 'postalCode', 'country', 'selectFromBelow',
+          'businessName', 'streetAddress', 'timeZone', 'isEnriched'
+        ];
         this.gridApi.exportDataAsCsv({
-          fileName: `reviewers_export_${new Date().toISOString().split('T')[0]}.csv`
+          fileName: `club_cat_crm_export_${new Date().toISOString().split('T')[0]}.csv`,
+          columnKeys: allColumnKeys
         });
-        this.addLog('Exported data to CSV', 'success');
+        this.addLog('Exported all 96 columns to CSV', 'success');
       }
     },
 

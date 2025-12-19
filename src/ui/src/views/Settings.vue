@@ -1,68 +1,38 @@
 <template>
   <div class="settings-wrapper">
-    <div class="settings-header">
-      <h1>Settings</h1>
-    </div>
     <div class="settings-container">
       <aside class="settings-sidebar">
-      <div class="sidebar-section">
-        <h3 class="section-header">MY BUSINESS</h3>
-        <nav>
-          <router-link to="/settings/business-profile" class="nav-item">Business Profile</router-link>
+        <div class="sidebar-header">
+          <button class="go-back-btn" @click="goBack">
+            <span class="arrow">&larr;</span> Go Back
+          </button>
+          <h2 class="sidebar-title">Settings</h2>
+        </div>
+        <nav class="sidebar-nav">
           <router-link to="/settings/my-profile" class="nav-item">My Profile</router-link>
+          <router-link to="/settings/company" class="nav-item">Company</router-link>
+          <router-link to="/settings/team" class="nav-item">Team</router-link>
           <router-link to="/settings/billing" class="nav-item">Billing</router-link>
-          <router-link to="/settings/my-staff" class="nav-item">My Staff</router-link>
-          <router-link to="/settings/opportunities-pipelines" class="nav-item">Opportunities & Pipelines</router-link>
-        </nav>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="section-header">BUSINESS SERVICES</h3>
-        <nav>
-          <router-link to="/settings/automation" class="nav-item">Automation</router-link>
-          <router-link to="/settings/calendars" class="nav-item">Calendars</router-link>
-          <router-link to="/settings/conversation-ai" class="nav-item">
-            Conversation AI
-            <span class="badge">New</span>
-          </router-link>
-          <router-link to="/settings/knowledge-base" class="nav-item">
-            Knowledge Base
-            <span class="badge">New</span>
-          </router-link>
-          <router-link to="/settings/voice-ai-agents" class="nav-item">Voice AI Agents</router-link>
+          <router-link to="/settings/phone-integration" class="nav-item">Phone Integration</router-link>
           <router-link to="/settings/email-services" class="nav-item">Email Services</router-link>
-          <router-link to="/settings/phone-numbers" class="nav-item">Phone Numbers</router-link>
-          <router-link to="/settings/whatsapp" class="nav-item">WhatsApp</router-link>
-        </nav>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="section-header">OTHER SETTINGS</h3>
-        <nav>
-          <router-link to="/settings/objects" class="nav-item">
-            Objects
-            <span class="badge">New</span>
-          </router-link>
-          <router-link to="/settings/custom-fields" class="nav-item">Custom Fields</router-link>
-          <router-link to="/settings/custom-values" class="nav-item">Custom Values</router-link>
-          <router-link to="/settings/manage-scoring" class="nav-item">Manage Scoring</router-link>
-          <router-link to="/settings/domains-url-redirects" class="nav-item">Domains & URL Redirects</router-link>
-          <router-link to="/settings/integrations" class="nav-item">Integrations</router-link>
+          <router-link to="/settings/system-emails" class="nav-item">System Emails</router-link>
+          <router-link to="/settings/announcements" class="nav-item">Announcements</router-link>
+          <router-link to="/settings/workflow-premium" class="nav-item">Workflow - Premium Features</router-link>
+          <router-link to="/settings/ai-employee" class="nav-item">AI Employee</router-link>
+          <router-link to="/settings/ask-ai-config" class="nav-item">Ask AI Configuration</router-link>
+          <router-link to="/settings/workflow-external-ai" class="nav-item">Workflow - External AI Models</router-link>
+          <router-link to="/settings/domain-purchase" class="nav-item">Domain Purchase</router-link>
           <router-link to="/settings/private-integrations" class="nav-item">Private Integrations</router-link>
-          <router-link to="/settings/conversation-providers" class="nav-item">Conversation Providers</router-link>
-          <router-link to="/settings/tags" class="nav-item">Tags</router-link>
-          <router-link to="/settings/labs" class="nav-item">
-            Labs
-            <span class="badge">New</span>
-          </router-link>
+          <router-link to="/settings/affiliates" class="nav-item">Affiliates</router-link>
+          <router-link to="/settings/custom-menu-links" class="nav-item">Custom Menu Links</router-link>
+          <router-link to="/settings/stripe" class="nav-item">Stripe</router-link>
+          <router-link to="/settings/compliance" class="nav-item">Compliance</router-link>
+          <router-link to="/settings/labs" class="nav-item">Labs</router-link>
           <router-link to="/settings/audit-logs" class="nav-item">Audit Logs</router-link>
-          <router-link to="/settings/brand-boards" class="nav-item">
-            Brand Boards
-            <span class="badge">New</span>
-          </router-link>
+          <router-link to="/settings/media-storage-usage" class="nav-item">Media Storage Usage</router-link>
+          <router-link to="/settings/help-ghl-api" class="nav-item">Help GHL API</router-link>
         </nav>
-      </div>
-    </aside>
+      </aside>
 
       <main class="settings-content">
         <router-view></router-view>
@@ -73,7 +43,12 @@
 
 <script>
 export default {
-  name: 'Settings'
+  name: 'Settings',
+  methods: {
+    goBack() {
+      this.$router.push('/');
+    }
+  }
 }
 </script>
 
@@ -83,106 +58,104 @@ export default {
   background-color: #f5f5f5;
 }
 
-.settings-header {
-  background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 20px 32px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.settings-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #111827;
-}
-
 .settings-container {
   display: flex;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
 }
 
 .settings-sidebar {
-  width: 250px;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  padding: 24px 0;
+  width: 260px;
+  min-width: 260px;
+  background-color: #1e293b;
+  padding: 0;
   overflow-y: auto;
+  height: 100vh;
   position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
+  top: 0;
 }
 
-.sidebar-section {
-  margin-bottom: 32px;
-  padding: 0 16px;
+.sidebar-header {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.section-header {
-  font-size: 11px;
+.go-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: background 0.2s;
+}
+
+.go-back-btn:hover {
+  background: #2563eb;
+}
+
+.go-back-btn .arrow {
+  font-size: 16px;
+}
+
+.sidebar-title {
+  color: #fff;
+  font-size: 20px;
   font-weight: 600;
-  color: #6b7280;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-  padding: 0 8px;
-  text-transform: uppercase;
+  margin: 0;
+}
+
+.sidebar-nav {
+  padding: 8px 0;
 }
 
 .nav-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  margin: 2px 0;
-  color: #374151;
+  display: block;
+  padding: 12px 20px;
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   font-size: 14px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  border-left: 3px solid transparent;
 }
 
 .nav-item:hover {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #fff;
 }
 
 .nav-item.router-link-active {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #fff;
+  border-left-color: #3b82f6;
   font-weight: 500;
-}
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #10b981;
-  background-color: #d1fae5;
-  border-radius: 12px;
-  margin-left: 8px;
 }
 
 .settings-content {
   flex: 1;
-  margin-left: 250px;
   padding: 32px 48px;
   background-color: #f5f5f5;
+  min-height: 100vh;
 }
 
 @media (max-width: 768px) {
+  .settings-container {
+    flex-direction: column;
+  }
+
   .settings-sidebar {
     position: static;
     width: 100%;
     height: auto;
-    border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    max-height: 50vh;
   }
 
   .settings-content {
-    margin-left: 0;
     padding: 24px 16px;
   }
 }

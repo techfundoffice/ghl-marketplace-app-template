@@ -15,95 +15,79 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/settings/business-profile'
-      },
-      {
-        path: 'business-profile',
-        component: BusinessProfile
+        redirect: '/settings/my-profile'
       },
       {
         path: 'my-profile',
         component: () => import('../components/settings/MyProfile.vue')
       },
       {
+        path: 'company',
+        component: () => import('../components/settings/BusinessProfile.vue')
+      },
+      {
+        path: 'team',
+        component: () => import('../components/settings/MyStaff.vue')
+      },
+      {
         path: 'billing',
         component: () => import('../components/settings/Billing.vue')
       },
       {
-        path: 'my-staff',
-        component: () => import('../components/settings/MyStaff.vue')
-      },
-      {
-        path: 'opportunities-pipelines',
-        component: () => import('../components/settings/OpportunitiesPipelines.vue')
-      },
-      {
-        path: 'automation',
-        component: () => import('../components/settings/Automation.vue')
-      },
-      {
-        path: 'calendars',
-        component: () => import('../components/settings/Calendars.vue')
-      },
-      {
-        path: 'conversation-ai',
-        component: () => import('../components/settings/ConversationAI.vue')
-      },
-      {
-        path: 'knowledge-base',
-        component: () => import('../components/settings/KnowledgeBase.vue')
-      },
-      {
-        path: 'voice-ai-agents',
-        component: () => import('../components/settings/VoiceAIAgents.vue')
+        path: 'phone-integration',
+        component: () => import('../components/settings/PhoneNumbers.vue')
       },
       {
         path: 'email-services',
         component: () => import('../components/settings/EmailServices.vue')
       },
       {
-        path: 'phone-numbers',
-        component: () => import('../components/settings/PhoneNumbers.vue')
+        path: 'system-emails',
+        component: () => import('../components/settings/SystemEmails.vue')
       },
       {
-        path: 'whatsapp',
-        component: () => import('../components/settings/WhatsApp.vue')
+        path: 'announcements',
+        component: () => import('../components/settings/Announcements.vue')
       },
       {
-        path: 'objects',
-        component: () => import('../components/settings/Objects.vue')
+        path: 'workflow-premium',
+        component: () => import('../components/settings/WorkflowPremium.vue')
       },
       {
-        path: 'custom-fields',
-        component: () => import('../components/settings/CustomFields.vue')
+        path: 'ai-employee',
+        component: () => import('../components/settings/AIEmployee.vue')
       },
       {
-        path: 'custom-values',
-        component: () => import('../components/settings/CustomValues.vue')
+        path: 'ask-ai-config',
+        component: () => import('../components/settings/AskAIConfig.vue')
       },
       {
-        path: 'manage-scoring',
-        component: () => import('../components/settings/ManageScoring.vue')
+        path: 'workflow-external-ai',
+        component: () => import('../components/settings/WorkflowExternalAI.vue')
       },
       {
-        path: 'domains-url-redirects',
-        component: () => import('../components/settings/DomainsURLRedirects.vue')
-      },
-      {
-        path: 'integrations',
-        component: () => import('../components/settings/Integrations.vue')
+        path: 'domain-purchase',
+        component: () => import('../components/settings/DomainPurchase.vue')
       },
       {
         path: 'private-integrations',
         component: () => import('../components/settings/PrivateIntegrations.vue')
       },
       {
-        path: 'conversation-providers',
-        component: () => import('../components/settings/ConversationProviders.vue')
+        path: 'affiliates',
+        component: () => import('../components/settings/Affiliates.vue')
       },
       {
-        path: 'tags',
-        component: () => import('../components/settings/Tags.vue')
+        path: 'custom-menu-links',
+        component: () => import('../components/settings/CustomMenuLinks.vue')
+      },
+      {
+        path: 'stripe',
+        component: () => import('../components/settings/Stripe.vue')
+      },
+      {
+        path: 'compliance',
+        component: () => import('../components/settings/Compliance.vue')
       },
       {
         path: 'labs',
@@ -114,8 +98,16 @@ const routes = [
         component: () => import('../components/settings/AuditLogs.vue')
       },
       {
-        path: 'brand-boards',
-        component: () => import('../components/settings/BrandBoards.vue')
+        path: 'media-storage-usage',
+        component: () => import('../components/settings/MediaStorageUsage.vue')
+      },
+      {
+        path: 'help-ghl-api',
+        component: () => import('../components/settings/HelpGHLAPI.vue')
+      },
+      {
+        path: 'business-profile',
+        component: BusinessProfile
       }
     ]
   },

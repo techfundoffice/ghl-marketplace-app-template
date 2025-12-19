@@ -54,83 +54,182 @@
         <table class="reviewers-table">
           <thead>
             <tr>
-              <th @click="sortBy('businessName')" class="sortable">
-                Business Name
-                <span v-if="sortColumn === 'businessName'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th @click="sortBy('address')" class="sortable">
-                Address
-                <span v-if="sortColumn === 'address'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th @click="sortBy('city')" class="sortable">
-                City
-                <span v-if="sortColumn === 'city'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th @click="sortBy('state')" class="sortable">
-                State
-                <span v-if="sortColumn === 'state'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th @click="sortBy('zip')" class="sortable">
-                Zip
-                <span v-if="sortColumn === 'zip'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th @click="sortBy('reviewRating')" class="sortable">
-                Stars
-                <span v-if="sortColumn === 'reviewRating'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th @click="sortBy('reviewerFirstName')" class="sortable">
-                First Name
-                <span v-if="sortColumn === 'reviewerFirstName'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
-              <th>Last Init.</th>
+              <!-- GROUP 1: Yelp Data -->
+              <th class="group-header" colspan="7">Yelp Data</th>
+            </tr>
+            <tr>
+              <th @click="sortBy('businessName')" class="sortable">Yelp business name</th>
+              <th @click="sortBy('reviewRating')" class="sortable">Yelp Review Stars</th>
+              <th @click="sortBy('businessAddress')" class="sortable">Yelp Business Address</th>
+              <th>Yelp Business Address 2</th>
+              <th @click="sortBy('businessCity')" class="sortable">Yelp Business City</th>
+              <th @click="sortBy('businessState')" class="sortable">Yelp Business State</th>
+              <th>Yelp Business Zip Code</th>
+              <!-- GROUP 2: Contact Info -->
+              <th @click="sortBy('reviewerFirstName')" class="sortable">First Name</th>
               <th>Last Name</th>
-              <th @click="sortBy('email')" class="sortable">
-                Email
-                <span v-if="sortColumn === 'email'" class="sort-icon">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-              </th>
+              <th @click="sortBy('email')" class="sortable">Email</th>
               <th>Phone</th>
-              <th>LinkedIn</th>
-              <th>Facebook</th>
-              <th>Instagram</th>
-              <th>WhatsApp</th>
-              <th>Twitter</th>
+              <th>Date Of Birth</th>
+              <th>Contact Source</th>
+              <th>Contact Type</th>
+              <th>Where did you hear about us?</th>
+              <th>Discount Code</th>
+              <!-- GROUP 3: Cat Boarding -->
+              <th>voice ai cat room check-in date</th>
+              <th>voice ai cat room check-out date</th>
+              <th>Join Cat Boarding Wait List</th>
+              <th>number of cats</th>
+              <th>number of cat rooms</th>
+              <th>Cat Name</th>
+              <th>Cat Breed</th>
+              <th>Cat Age</th>
+              <!-- GROUP 4: Cloudbeds Reservation -->
+              <th>Cloudbeds Reservation ID</th>
+              <th>Cloudbeds Property ID</th>
+              <th>Cloudbeds Reservation Status</th>
+              <th>Cloudbeds Date Created</th>
+              <th>Cloudbeds Date Modified</th>
+              <th>Cloudbeds Guest ID</th>
+              <!-- GROUP 5: Billing Address -->
+              <th>Billing Address - Full Name</th>
+              <th>Billing Address - Phone Number</th>
+              <th>Billing Address - Full Address</th>
+              <th>Billing Address - Country</th>
+              <th>Billing Address - State</th>
+              <th>Billing Address - Zip Code</th>
+              <th>Billing Address - City</th>
+              <!-- GROUP 6: Opportunity/CRM -->
+              <th>Select Each Service:</th>
+              <th>Opportunity Name</th>
+              <th>Pipeline</th>
+              <th>Stage</th>
+              <th>Status</th>
+              <th>Lead Value</th>
+              <th>Opportunity Owner</th>
+              <th>Opportunity Source</th>
+              <th>Lost Reason</th>
+              <th>Meeting Notes</th>
+              <!-- GROUP 7: Pet/Grooming -->
+              <th>Hair Type</th>
+              <th>Hair Color</th>
+              <th>Pet Name</th>
+              <th>Pet Breed</th>
+              <th>Pet Weight</th>
+              <th>Pet Birthday</th>
+              <th>Veterinary Clinic</th>
+              <th>Select Your Level Of Grooming Service</th>
+              <th>Add-On Services (optional)</th>
+              <th>Additional Comments (optional)</th>
+              <th>Day of Week</th>
+              <th>What time of day is best for you?</th>
+              <th>Choose Your Booking Type</th>
+              <th>Notes to the Groomer:</th>
+              <th>Does your cat need sedation</th>
+              <!-- GROUP 8: Cloudbeds Guest -->
+              <th>Cloudbeds Guest Cell Phone</th>
+              <th>Cloudbeds Guest Address1</th>
+              <th>Cloudbeds Guest Address2</th>
+              <th>Cloudbeds Guest City</th>
+              <th>Cloudbeds Guest State</th>
+              <th>Cloudbeds Guest Country</th>
+              <th>Cloudbeds Guest Zip</th>
+              <th>Cloudbeds Guest Birth Date</th>
+              <th>Cloudbeds Guest Document Type</th>
+              <th>Cloudbeds Guest Document Number</th>
+              <th>Cloudbeds Guest Document Issue Date</th>
+              <th>Cloudbeds Guest Document Issue Country</th>
+              <th>Cloudbeds Guest Document Expiration Date</th>
+              <th>Cloudbeds Sub Reservation ID</th>
+              <th>Cloudbeds Start Date</th>
+              <th>Cloudbeds End Date</th>
+              <th>Cloudbeds Assigned Room</th>
+              <th>Cloudbeds Room ID</th>
+              <th>Cloudbeds Room Name</th>
+              <th>Cloudbeds Room Type Name</th>
+              <th>Cloudbeds Is Main Guest</th>
+              <th>Cloudbeds Estimated Arrival Time</th>
+              <th>Cloudbeds Guest Opt In</th>
+              <!-- GROUP 9: Business Info -->
+              <th>Company Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Website</th>
+              <th>Address</th>
+              <th>State</th>
+              <th>City</th>
+              <th>Description</th>
+              <th>Postal Code</th>
+              <th>Country</th>
+              <th>Select From Below</th>
+              <th>Business Name</th>
+              <th>Street Address</th>
+              <th>Time Zone</th>
+              <!-- Actions -->
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(reviewer, index) in sortedReviewers" :key="reviewer.reviewerId + '-' + index" :class="{ 'zebra-odd': index % 2 === 1 }">
+              <!-- GROUP 1: Yelp Data (7 columns) -->
               <td class="name-cell">{{ reviewer.businessName || '-' }}</td>
-              <td>{{ reviewer.address || '-' }}</td>
-              <td>{{ reviewer.city || '-' }}</td>
-              <td>{{ reviewer.state || '-' }}</td>
-              <td>{{ reviewer.zip || '-' }}</td>
               <td class="rating-cell">
                 <span v-for="n in 5" :key="n" class="star" :class="{ filled: n <= reviewer.reviewRating }">★</span>
               </td>
+              <td>{{ reviewer.businessAddress || reviewer.address || '-' }}</td>
+              <td>-</td>
+              <td>{{ reviewer.businessCity || reviewer.city || '-' }}</td>
+              <td>{{ reviewer.businessState || reviewer.state || '-' }}</td>
+              <td>{{ reviewer.businessZip || reviewer.zip || '-' }}</td>
+              <!-- GROUP 2: Contact Info (9 columns) -->
               <td>{{ reviewer.reviewerFirstName || '-' }}</td>
-              <td>{{ reviewer.reviewerLastInitial || '-' }}</td>
-              <td>{{ reviewer.reviewerLastName || '-' }}</td>
+              <td>{{ reviewer.reviewerLastName || reviewer.reviewerLastInitial || '-' }}</td>
               <td>{{ reviewer.email || '-' }}</td>
               <td>{{ reviewer.phone || '-' }}</td>
+              <td>-</td>
+              <td>Yelp Review</td>
+              <td>Lead</td>
+              <td>Yelp</td>
+              <td>-</td>
+              <!-- GROUP 3: Cat Boarding (8 columns) -->
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <!-- GROUP 4: Cloudbeds Reservation (6 columns) -->
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <!-- GROUP 5: Billing Address (7 columns) -->
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <!-- GROUP 6: Opportunity/CRM (10 columns) -->
+              <td>-</td>
+              <td>{{ reviewer.reviewerFirstName || 'Lead' }} - {{ reviewer.businessName || 'Yelp' }}</td>
+              <td>Yelp Reviews</td>
+              <td>New Lead</td>
+              <td>Open</td>
+              <td>-</td>
+              <td>-</td>
+              <td>Yelp</td>
+              <td>-</td>
+              <td class="notes-cell">{{ (reviewer.reviewText || '').substring(0, 100) }}{{ (reviewer.reviewText || '').length > 100 ? '...' : '' }}</td>
+              <!-- GROUP 7: Pet/Grooming (15 columns) -->
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <!-- GROUP 8: Cloudbeds Guest (23 columns) -->
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <!-- GROUP 9: Business Info (14 columns) -->
+              <td>{{ reviewer.company || '-' }}</td>
+              <td>{{ reviewer.phone || '-' }}</td>
+              <td>{{ reviewer.email || '-' }}</td>
+              <td>{{ reviewer.businessUrl || '-' }}</td>
+              <td>{{ reviewer.businessAddress || reviewer.address || '-' }}</td>
+              <td>{{ reviewer.businessState || reviewer.state || '-' }}</td>
+              <td>{{ reviewer.businessCity || reviewer.city || '-' }}</td>
+              <td>-</td>
+              <td>{{ reviewer.businessZip || reviewer.zip || '-' }}</td>
+              <td>USA</td>
+              <td>-</td>
+              <td>{{ reviewer.businessName || '-' }}</td>
+              <td>{{ reviewer.businessAddress || reviewer.address || '-' }}</td>
+              <td>-</td>
+              <!-- Actions -->
               <td>
-                <a v-if="reviewer.linkedin" :href="reviewer.linkedin" target="_blank" class="social-link">View</a>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <a v-if="reviewer.facebook" :href="reviewer.facebook" target="_blank" class="social-link">View</a>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <a v-if="reviewer.instagram" :href="reviewer.instagram" target="_blank" class="social-link">View</a>
-                <span v-else>-</span>
-              </td>
-              <td>{{ reviewer.whatsapp || '-' }}</td>
-              <td>
-                <a v-if="reviewer.twitter" :href="reviewer.twitter" target="_blank" class="social-link">View</a>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <button 
+                <button
                   v-if="!reviewer.isEnriched"
                   class="enrich-btn"
                   @click="enrichReviewer(reviewer)"
@@ -265,12 +364,36 @@ export default {
     },
 
     exportCSV() {
+      // All 96 column headers
       const headers = [
-        'Business Name', 'Address', 'City', 'State', 'Zip', 'Review Stars',
-        'First Name', 'Last Initial', 'Last Name', 'Email', 'Phone',
-        'LinkedIn', 'Facebook', 'Instagram', 'WhatsApp', 'Twitter'
+        'Yelp business name', 'Yelp Review Stars', 'Yelp Business Address', 'Yelp Business Address 2',
+        'Yelp Business City', 'Yelp Business State', 'Yelp Business Zip Code',
+        'First Name', 'Last Name', 'Email', 'Phone', 'Date Of Birth', 'Contact Source',
+        'Contact Type', 'Where did you hear about us?', 'Discount Code',
+        'voice ai cat room check-in date', 'voice ai cat room check-out date', 'Join Cat Boarding Wait List',
+        'number of cats', 'number of cat rooms', 'Cat Name', 'Cat Breed', 'Cat Age',
+        'Cloudbeds Reservation ID', 'Cloudbeds Property ID', 'Cloudbeds Reservation Status',
+        'Cloudbeds Date Created', 'Cloudbeds Date Modified', 'Cloudbeds Guest ID',
+        'Billing Address - Full Name', 'Billing Address - Phone Number', 'Billing Address - Full Address',
+        'Billing Address - Country', 'Billing Address - State', 'Billing Address - Zip Code', 'Billing Address - City',
+        'Select Each Service:', 'Opportunity Name', 'Pipeline', 'Stage', 'Status', 'Lead Value',
+        'Opportunity Owner', 'Opportunity Source', 'Lost Reason', 'Meeting Notes',
+        'Hair Type', 'Hair Color', 'Pet Name', 'Pet Breed', 'Pet Weight', 'Pet Birthday',
+        'Veterinary Clinic', 'Select Your Level Of Grooming Service', 'Add-On Services (optional)',
+        'Additional Comments (optional)', 'Day of Week', 'What time of day is best for you?',
+        'Choose Your Booking Type', 'Notes to the Groomer:', 'Does your cat need sedation',
+        'Cloudbeds Guest Cell Phone', 'Cloudbeds Guest Address1', 'Cloudbeds Guest Address2',
+        'Cloudbeds Guest City', 'Cloudbeds Guest State', 'Cloudbeds Guest Country', 'Cloudbeds Guest Zip',
+        'Cloudbeds Guest Birth Date', 'Cloudbeds Guest Document Type', 'Cloudbeds Guest Document Number',
+        'Cloudbeds Guest Document Issue Date', 'Cloudbeds Guest Document Issue Country',
+        'Cloudbeds Guest Document Expiration Date', 'Cloudbeds Sub Reservation ID', 'Cloudbeds Start Date',
+        'Cloudbeds End Date', 'Cloudbeds Assigned Room', 'Cloudbeds Room ID', 'Cloudbeds Room Name',
+        'Cloudbeds Room Type Name', 'Cloudbeds Is Main Guest', 'Cloudbeds Estimated Arrival Time',
+        'Cloudbeds Guest Opt In', 'Company Name', 'Phone', 'Email', 'Website',
+        'Address', 'State', 'City', 'Description', 'Postal Code', 'Country', 'Select From Below',
+        'Business Name', 'Street Address', 'Time Zone'
       ];
-      
+
       const escapeCSV = (val) => {
         if (val === null || val === undefined) return '';
         const str = String(val);
@@ -281,33 +404,65 @@ export default {
       };
 
       const rows = this.sortedReviewers.map(r => [
-        escapeCSV(r.businessName),
-        escapeCSV(r.address),
-        escapeCSV(r.city),
-        escapeCSV(r.state),
-        escapeCSV(r.zip),
-        escapeCSV(r.reviewRating),
-        escapeCSV(r.reviewerFirstName),
-        escapeCSV(r.reviewerLastInitial),
-        escapeCSV(r.reviewerLastName),
-        escapeCSV(r.email),
-        escapeCSV(r.phone),
-        escapeCSV(r.linkedin),
-        escapeCSV(r.facebook),
-        escapeCSV(r.instagram),
-        escapeCSV(r.whatsapp),
-        escapeCSV(r.twitter)
+        // Yelp Data
+        escapeCSV(r.businessName), escapeCSV(r.reviewRating), escapeCSV(r.businessAddress || r.address), '',
+        escapeCSV(r.businessCity || r.city), escapeCSV(r.businessState || r.state), escapeCSV(r.businessZip || r.zip),
+        // Contact Info
+        escapeCSV(r.reviewerFirstName), escapeCSV(r.reviewerLastName || r.reviewerLastInitial),
+        escapeCSV(r.email), escapeCSV(r.phone), '', 'Yelp Review', 'Lead', 'Yelp', '',
+        // Cat Boarding (8 empty)
+        '', '', '', '', '', '', '', '',
+        // Cloudbeds Reservation (6 empty)
+        '', '', '', '', '', '',
+        // Billing Address (7 empty)
+        '', '', '', '', '', '', '',
+        // Opportunity/CRM
+        '', `${r.reviewerFirstName || 'Lead'} - ${r.businessName || 'Yelp'}`, 'Yelp Reviews', 'New Lead', 'Open',
+        '', '', 'Yelp', '', escapeCSV(r.reviewText),
+        // Pet/Grooming (15 empty)
+        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+        // Cloudbeds Guest (23 empty)
+        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+        // Business Info
+        escapeCSV(r.company), escapeCSV(r.phone), escapeCSV(r.email), escapeCSV(r.businessUrl),
+        escapeCSV(r.businessAddress || r.address), escapeCSV(r.businessState || r.state),
+        escapeCSV(r.businessCity || r.city), '', escapeCSV(r.businessZip || r.zip), 'USA', '',
+        escapeCSV(r.businessName), escapeCSV(r.businessAddress || r.address), ''
       ].join(','));
 
       const csvContent = [headers.join(','), ...rows].join('\n');
-      this.downloadFile(csvContent, 'reviewers_export.csv', 'text/csv');
+      this.downloadFile(csvContent, 'club_cat_crm_export.csv', 'text/csv');
     },
 
     exportExcel() {
+      // All 96 column headers
       const headers = [
-        'Business Name', 'Address', 'City', 'State', 'Zip', 'Review Stars',
-        'First Name', 'Last Initial', 'Last Name', 'Email', 'Phone',
-        'LinkedIn', 'Facebook', 'Instagram', 'WhatsApp', 'Twitter'
+        'Yelp business name', 'Yelp Review Stars', 'Yelp Business Address', 'Yelp Business Address 2',
+        'Yelp Business City', 'Yelp Business State', 'Yelp Business Zip Code',
+        'First Name', 'Last Name', 'Email', 'Phone', 'Date Of Birth', 'Contact Source',
+        'Contact Type', 'Where did you hear about us?', 'Discount Code',
+        'voice ai cat room check-in date', 'voice ai cat room check-out date', 'Join Cat Boarding Wait List',
+        'number of cats', 'number of cat rooms', 'Cat Name', 'Cat Breed', 'Cat Age',
+        'Cloudbeds Reservation ID', 'Cloudbeds Property ID', 'Cloudbeds Reservation Status',
+        'Cloudbeds Date Created', 'Cloudbeds Date Modified', 'Cloudbeds Guest ID',
+        'Billing Address - Full Name', 'Billing Address - Phone Number', 'Billing Address - Full Address',
+        'Billing Address - Country', 'Billing Address - State', 'Billing Address - Zip Code', 'Billing Address - City',
+        'Select Each Service:', 'Opportunity Name', 'Pipeline', 'Stage', 'Status', 'Lead Value',
+        'Opportunity Owner', 'Opportunity Source', 'Lost Reason', 'Meeting Notes',
+        'Hair Type', 'Hair Color', 'Pet Name', 'Pet Breed', 'Pet Weight', 'Pet Birthday',
+        'Veterinary Clinic', 'Select Your Level Of Grooming Service', 'Add-On Services (optional)',
+        'Additional Comments (optional)', 'Day of Week', 'What time of day is best for you?',
+        'Choose Your Booking Type', 'Notes to the Groomer:', 'Does your cat need sedation',
+        'Cloudbeds Guest Cell Phone', 'Cloudbeds Guest Address1', 'Cloudbeds Guest Address2',
+        'Cloudbeds Guest City', 'Cloudbeds Guest State', 'Cloudbeds Guest Country', 'Cloudbeds Guest Zip',
+        'Cloudbeds Guest Birth Date', 'Cloudbeds Guest Document Type', 'Cloudbeds Guest Document Number',
+        'Cloudbeds Guest Document Issue Date', 'Cloudbeds Guest Document Issue Country',
+        'Cloudbeds Guest Document Expiration Date', 'Cloudbeds Sub Reservation ID', 'Cloudbeds Start Date',
+        'Cloudbeds End Date', 'Cloudbeds Assigned Room', 'Cloudbeds Room ID', 'Cloudbeds Room Name',
+        'Cloudbeds Room Type Name', 'Cloudbeds Is Main Guest', 'Cloudbeds Estimated Arrival Time',
+        'Cloudbeds Guest Opt In', 'Company Name', 'Phone', 'Email', 'Website',
+        'Address', 'State', 'City', 'Description', 'Postal Code', 'Country', 'Select From Below',
+        'Business Name', 'Street Address', 'Time Zone'
       ];
 
       const escapeTab = (val) => {
@@ -316,26 +471,34 @@ export default {
       };
 
       const rows = this.sortedReviewers.map(r => [
-        escapeTab(r.businessName),
-        escapeTab(r.address),
-        escapeTab(r.city),
-        escapeTab(r.state),
-        escapeTab(r.zip),
-        escapeTab(r.reviewRating),
-        escapeTab(r.reviewerFirstName),
-        escapeTab(r.reviewerLastInitial),
-        escapeTab(r.reviewerLastName),
-        escapeTab(r.email),
-        escapeTab(r.phone),
-        escapeTab(r.linkedin),
-        escapeTab(r.facebook),
-        escapeTab(r.instagram),
-        escapeTab(r.whatsapp),
-        escapeTab(r.twitter)
+        // Yelp Data
+        escapeTab(r.businessName), escapeTab(r.reviewRating), escapeTab(r.businessAddress || r.address), '',
+        escapeTab(r.businessCity || r.city), escapeTab(r.businessState || r.state), escapeTab(r.businessZip || r.zip),
+        // Contact Info
+        escapeTab(r.reviewerFirstName), escapeTab(r.reviewerLastName || r.reviewerLastInitial),
+        escapeTab(r.email), escapeTab(r.phone), '', 'Yelp Review', 'Lead', 'Yelp', '',
+        // Cat Boarding (8 empty)
+        '', '', '', '', '', '', '', '',
+        // Cloudbeds Reservation (6 empty)
+        '', '', '', '', '', '',
+        // Billing Address (7 empty)
+        '', '', '', '', '', '', '',
+        // Opportunity/CRM
+        '', `${r.reviewerFirstName || 'Lead'} - ${r.businessName || 'Yelp'}`, 'Yelp Reviews', 'New Lead', 'Open',
+        '', '', 'Yelp', '', escapeTab(r.reviewText),
+        // Pet/Grooming (15 empty)
+        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+        // Cloudbeds Guest (23 empty)
+        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+        // Business Info
+        escapeTab(r.company), escapeTab(r.phone), escapeTab(r.email), escapeTab(r.businessUrl),
+        escapeTab(r.businessAddress || r.address), escapeTab(r.businessState || r.state),
+        escapeTab(r.businessCity || r.city), '', escapeTab(r.businessZip || r.zip), 'USA', '',
+        escapeTab(r.businessName), escapeTab(r.businessAddress || r.address), ''
       ].join('\t'));
 
       const xlsContent = [headers.join('\t'), ...rows].join('\n');
-      this.downloadFile(xlsContent, 'reviewers_export.xls', 'application/vnd.ms-excel');
+      this.downloadFile(xlsContent, 'club_cat_crm_export.xls', 'application/vnd.ms-excel');
     },
 
     downloadFile(content, filename, mimeType) {
@@ -600,6 +763,22 @@ export default {
 .enriched-text {
   color: #10b981;
   font-weight: 600;
+}
+
+.group-header {
+  background: #1e40af !important;
+  color: white !important;
+  text-align: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.notes-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .spinner {

@@ -12,6 +12,7 @@ const routes = [
   {
     path: '/settings',
     component: Settings,
+    meta: { hideMainSidebar: true },
     children: [
       {
         path: '',

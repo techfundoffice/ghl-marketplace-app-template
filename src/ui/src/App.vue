@@ -1,8 +1,8 @@
 <template>
   <div id="app">
     <div class="app-layout">
-      <Sidebar />
-      <main class="main-content">
+      <Sidebar v-if="showMainSidebar" />
+      <main class="main-content" :class="{ 'full-width': !showMainSidebar }">
         <router-view></router-view>
       </main>
     </div>
@@ -16,6 +16,11 @@ export default {
   name: 'App',
   components: {
     Sidebar
+  },
+  computed: {
+    showMainSidebar() {
+      return !this.$route.matched.some(record => record.meta.hideMainSidebar);
+    }
   },
   mounted(){
     if (window.ghl && window.ghl.getUserData) {

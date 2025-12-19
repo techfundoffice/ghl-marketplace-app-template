@@ -102,27 +102,23 @@ export class BrightDataYelpScraper {
   }
 
   /**
-   * Parse reviews from Yelp HTML using regex patterns
-   * (Server-side parsing without cheerio for simplicity)
+   * Parse reviews from Yelp HTML using multiple strategies
    */
   private parseReviewsFromHtml(html: string): YelpReview[] {
     const reviews: YelpReview[] = [];
 
-    // Yelp uses JSON-LD and embedded JSON for review data
-    // Try to extract from script tags first
+    // Strategy 1: Look for JSON-LD structured data
     const jsonLdMatches = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
-
     if (jsonLdMatches) {
       for (const match of jsonLdMatches) {
         try {
           const jsonContent = match.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
           const data = JSON.parse(jsonContent);
-
-          if (data['@type'] === 'LocalBusiness' && data.review) {
+          if ((data['@type'] === 'LocalBusiness' || data['@type'] === 'Restaurant') && data.review) {
             const reviewsData = Array.isArray(data.review) ? data.review : [data.review];
             for (const r of reviewsData) {
               reviews.push({
-                yelpReviewId: r['@id'] || `yelp-${Date.now()}-${reviews.length}`,
+                yelpReviewId: r['@id'] || `ld-${Date.now()}-${reviews.length}`,
                 authorName: r.author?.name || 'Anonymous',
                 authorLocation: '',
                 rating: r.reviewRating?.ratingValue || 0,
@@ -131,60 +127,97 @@ export class BrightDataYelpScraper {
               });
             }
           }
-        } catch (e) {
-          // JSON parse error, continue
-        }
+        } catch (e) {}
       }
     }
+    if (reviews.length > 0) {
+      console.log(`[BrightData] Found ${reviews.length} reviews via JSON-LD`);
+      return reviews;
+    }
 
-    // Also try to extract from embedded React/Redux state
-    const stateMatch = html.match(/window\.__PRELOADED_STATE__\s*=\s*({[\s\S]*?});?\s*<\/script>/);
-    if (stateMatch) {
+    // Strategy 2: Extract from Yelp's embedded Apollo/GraphQL state
+    const apolloStateMatch = html.match(/"reviewList":\s*\[([\s\S]*?)\](?=,"|}\s*<)/);
+    if (apolloStateMatch) {
       try {
-        // Clean up the JSON string
-        let jsonStr = stateMatch[1]
-          .replace(/undefined/g, 'null')
-          .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-
-        const state = JSON.parse(jsonStr);
-
-        // Navigate through the state to find reviews
-        const reviewsFromState = this.extractReviewsFromState(state);
-        if (reviewsFromState.length > 0) {
-          return reviewsFromState;
+        const reviewListJson = `[${apolloStateMatch[1]}]`;
+        const reviewList = JSON.parse(reviewListJson);
+        for (const r of reviewList) {
+          if (r.text || r.comment) {
+            reviews.push({
+              yelpReviewId: r.id || r.encryptedId || `apollo-${Date.now()}-${reviews.length}`,
+              authorName: r.user?.name || r.author?.name || 'Anonymous',
+              authorLocation: r.user?.location || '',
+              yelpUserId: r.user?.id,
+              rating: r.rating || 0,
+              text: r.text || r.comment || '',
+              date: r.createdAt || r.localizedDate,
+            });
+          }
         }
-      } catch (e) {
-        // State parse error, continue with regex
-      }
+      } catch (e) {}
+    }
+    if (reviews.length > 0) {
+      console.log(`[BrightData] Found ${reviews.length} reviews via Apollo state`);
+      return reviews;
     }
 
-    // Fallback: Extract reviews using regex patterns
-    // Look for review containers in the HTML
-    const reviewBlockRegex = /<div[^>]*class="[^"]*review[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/gi;
-    const ratingRegex = /aria-label="(\d(?:\.\d)?)\s*star\s*rating"/i;
-    const userNameRegex = /class="[^"]*user-name[^"]*"[^>]*>([^<]+)</i;
-    const reviewTextRegex = /class="[^"]*comment[^"]*"[^>]*>[\s\S]*?<p[^>]*>([^<]+)</i;
-    const dateRegex = /class="[^"]*rating-qualifier[^"]*"[^>]*>([^<]+)</i;
+    // Strategy 3: Parse from script containing "bizDetailsPageProps" 
+    const bizPropsMatch = html.match(/<!--\s*(?:BizDetails|bizDetailsPage)Props\s*-->\s*<script[^>]*>([\s\S]*?)<\/script>/i);
+    if (bizPropsMatch) {
+      try {
+        const propsData = JSON.parse(bizPropsMatch[1]);
+        const reviewsData = propsData?.reviewFeedQueryProps?.reviews || 
+                            propsData?.bizDetailsProps?.reviews ||
+                            propsData?.reviews || [];
+        for (const r of reviewsData) {
+          reviews.push({
+            yelpReviewId: r.id || `props-${Date.now()}-${reviews.length}`,
+            authorName: r.user?.markupDisplayName || r.user?.name || 'Anonymous',
+            authorLocation: r.user?.displayLocation || '',
+            yelpUserId: r.user?.id,
+            rating: r.rating || 0,
+            text: r.comment?.text || r.text || '',
+            date: r.localizedDate,
+          });
+        }
+      } catch (e) {}
+    }
+    if (reviews.length > 0) {
+      console.log(`[BrightData] Found ${reviews.length} reviews via BizDetailsProps`);
+      return reviews;
+    }
 
-    let blockMatch;
-    while ((blockMatch = reviewBlockRegex.exec(html)) !== null) {
-      const block = blockMatch[1];
+    // Strategy 4: Generic JSON extraction for review objects
+    const reviewJsonRegex = /"encryptedId":\s*"([^"]+)"[\s\S]*?"rating":\s*(\d)[\s\S]*?"text":\s*"([^"]{10,}?)"/g;
+    let jsonMatch;
+    while ((jsonMatch = reviewJsonRegex.exec(html)) !== null && reviews.length < 50) {
+      reviews.push({
+        yelpReviewId: jsonMatch[1],
+        authorName: 'Yelp User',
+        authorLocation: '',
+        rating: parseInt(jsonMatch[2]),
+        text: jsonMatch[3].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+      });
+    }
+    if (reviews.length > 0) {
+      console.log(`[BrightData] Found ${reviews.length} reviews via JSON regex`);
+      return reviews;
+    }
 
-      const ratingMatch = ratingRegex.exec(block);
-      const userMatch = userNameRegex.exec(block);
-      const textMatch = reviewTextRegex.exec(block);
-      const dateMatch = dateRegex.exec(block);
-
-      if (textMatch && textMatch[1]) {
-        reviews.push({
-          yelpReviewId: `yelp-html-${Date.now()}-${reviews.length}`,
-          authorName: userMatch ? userMatch[1].trim() : 'Anonymous',
-          authorLocation: '',
-          rating: ratingMatch ? parseFloat(ratingMatch[1]) : 0,
-          text: textMatch[1].trim(),
-          date: dateMatch ? dateMatch[1].trim() : undefined,
-        });
-      }
+    // Strategy 5: Look for comment__09f24__text patterns (Yelp 2024 class names)
+    const commentTextRegex = /class="[^"]*comment[^"]*"[^>]*>[\s\S]*?<span[^>]*lang="[^"]*"[^>]*>([^<]{20,})</gi;
+    let commentMatch;
+    while ((commentMatch = commentTextRegex.exec(html)) !== null && reviews.length < 50) {
+      reviews.push({
+        yelpReviewId: `html-${Date.now()}-${reviews.length}`,
+        authorName: 'Yelp User',
+        authorLocation: '',
+        rating: 5,
+        text: commentMatch[1].trim(),
+      });
+    }
+    if (reviews.length > 0) {
+      console.log(`[BrightData] Found ${reviews.length} reviews via HTML comment class`);
     }
 
     return reviews;
@@ -278,147 +311,91 @@ export class BrightDataYelpScraper {
   }
 
   /**
-   * Method 1: Use Web Unlocker API for scraping
-   * Best for: Simple pages, faster response
+   * Method 1: Use Web Unlocker REST API for scraping (2024 recommended approach)
+   * Uses POST to https://api.brightdata.com/request
    */
   async scrapeWithWebUnlocker(options: ScrapeOptions): Promise<YelpScrapeResult> {
     const { url, maxReviews = 10 } = options;
 
     try {
-      console.log(`[BrightData] Scraping Yelp with Web Unlocker: ${url}`);
+      console.log(`[BrightData] Scraping Yelp with Web Unlocker REST API: ${url}`);
 
-      // Get customer ID first
-      const statusResponse = await this.client.get('/status');
-      const customer = statusResponse.data.customer;
+      // Use the REST API endpoint (recommended method)
+      const response = await this.client.post('/request', {
+        zone: this.webUnlockerZone,
+        url: url,
+        format: 'raw',
+        country: 'us',
+      }, {
+        timeout: 120000,
+      });
 
-      // Build proxy URL for Web Unlocker
-      const proxyAuth = await this.getWebUnlockerCredentials();
-
-      // Create HTTPS proxy agent with proper credentials
-      const proxyUrl = `http://${proxyAuth.username}:${proxyAuth.password}@brd.superproxy.io:33335`;
-      const httpsAgent = new HttpsProxyAgent(proxyUrl);
-
-      // Temporarily disable TLS verification for Bright Data's SSL interception
-      // Save original value
-      const originalTlsReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-      try {
-        // Make request through Web Unlocker proxy
-        const response = await axios.get(url, {
-          httpAgent: httpsAgent,
-          httpsAgent: httpsAgent,
-          proxy: false, // Disable axios built-in proxy to use our agent
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Cache-Control': 'no-cache',
-          },
-          timeout: 120000, // 2 minutes - Yelp pages can be slow through proxy
-          maxRedirects: 5,
-        });
-
-        // Restore TLS verification
-        if (originalTlsReject !== undefined) {
-          process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTlsReject;
-        } else {
-          delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        }
-
-        const html = response.data;
-        const business = this.parseBusinessFromHtml(html, url);
-        let reviews = this.parseReviewsFromHtml(html);
-
-        // Limit reviews if needed
-        if (reviews.length > maxReviews) {
-          reviews = reviews.slice(0, maxReviews);
-        }
-
-        return {
-          success: true,
-          provider: 'brightdata',
-          method: 'web_unlocker',
-          business: business || undefined,
-          reviews,
-        };
-      } finally {
-        // Ensure TLS verification is restored even on error
-        if (originalTlsReject !== undefined) {
-          process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTlsReject;
-        } else {
-          delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-        }
+      const html = typeof response.data === 'string' ? response.data : response.data.html || response.data.body || '';
+      
+      if (!html || html.length < 1000) {
+        throw new Error('Empty or invalid HTML response');
       }
+
+      console.log(`[BrightData] Got HTML response: ${html.length} chars`);
+      
+      const business = this.parseBusinessFromHtml(html, url);
+      let reviews = this.parseReviewsFromHtml(html);
+
+      console.log(`[BrightData] Parsed ${reviews.length} reviews from HTML`);
+
+      // Limit reviews if needed
+      if (reviews.length > maxReviews) {
+        reviews = reviews.slice(0, maxReviews);
+      }
+
+      return {
+        success: reviews.length > 0,
+        provider: 'brightdata',
+        method: 'web_unlocker',
+        business: business || undefined,
+        reviews,
+        error: reviews.length === 0 ? 'No reviews found in HTML' : undefined,
+      };
     } catch (error: any) {
-      console.error('[BrightData] Web Unlocker error:', error.message);
+      console.error('[BrightData] Web Unlocker REST API error:', error.response?.data || error.message);
       return {
         success: false,
         provider: 'brightdata',
         method: 'web_unlocker',
         reviews: [],
-        error: error.message,
+        error: error.response?.data?.message || error.message,
       };
     }
   }
 
   /**
-   * Get Web Unlocker proxy credentials
-   */
-  private async getWebUnlockerCredentials(): Promise<{ username: string; password: string }> {
-    try {
-      const statusResponse = await this.client.get('/status');
-      const customer = statusResponse.data.customer;
-
-      const passwordResponse = await this.client.get(`/zone/passwords?zone=${this.webUnlockerZone}`);
-      const password = passwordResponse.data.passwords?.[0];
-
-      return {
-        username: `brd-customer-${customer}-zone-${this.webUnlockerZone}`,
-        password: password || '',
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to get Web Unlocker credentials: ${error.message}`);
-    }
-  }
-
-  /**
-   * Method 2: Use Scraping Browser for JavaScript-heavy pages
-   * Best for: Dynamic content, complex pages
+   * Method 2: Use Web Unlocker with JavaScript rendering
+   * For dynamic pages that need JS execution
    */
   async scrapeWithScrapingBrowser(options: ScrapeOptions): Promise<YelpScrapeResult> {
     const { url, maxReviews = 10 } = options;
 
     try {
-      console.log(`[BrightData] Scraping Yelp with Scraping Browser: ${url}`);
+      console.log(`[BrightData] Scraping Yelp with JS rendering: ${url}`);
 
-      // Get CDP endpoint
-      const statusResponse = await this.client.get('/status');
-      const customer = statusResponse.data.customer;
-
-      const passwordResponse = await this.client.get(`/zone/passwords?zone=${this.browserZone}`);
-      const password = passwordResponse.data.passwords?.[0];
-
-      if (!password) {
-        throw new Error(`Browser zone '${this.browserZone}' not configured`);
-      }
-
-      const cdpEndpoint = `wss://brd-customer-${customer}-zone-${this.browserZone}:${password}@brd.superproxy.io:9222`;
-
-      // Use puppeteer-core to connect (if available)
-      // For this implementation, we'll use a simpler HTTP-based approach
-      // through the Bright Data API
-
-      const scrapeResponse = await this.client.post('/request', {
-        zone: this.browserZone,
-        url,
+      const response = await this.client.post('/request', {
+        zone: this.webUnlockerZone,
+        url: url,
+        format: 'raw',
+        country: 'us',
         render_js: true,
-        wait_for: 'networkidle',
-        timeout: 60000,
+      }, {
+        timeout: 120000,
       });
 
-      const html = scrapeResponse.data.html || scrapeResponse.data;
+      const html = typeof response.data === 'string' ? response.data : response.data.html || response.data.body || '';
+      
+      if (!html || html.length < 1000) {
+        throw new Error('Empty or invalid HTML response');
+      }
+
+      console.log(`[BrightData] Got JS-rendered HTML: ${html.length} chars`);
+      
       const business = this.parseBusinessFromHtml(html, url);
       let reviews = this.parseReviewsFromHtml(html);
 
@@ -427,27 +404,28 @@ export class BrightDataYelpScraper {
       }
 
       return {
-        success: true,
+        success: reviews.length > 0,
         provider: 'brightdata',
         method: 'scraping_browser',
         business: business || undefined,
         reviews,
+        error: reviews.length === 0 ? 'No reviews found' : undefined,
       };
     } catch (error: any) {
-      console.error('[BrightData] Scraping Browser error:', error.message);
+      console.error('[BrightData] JS render error:', error.response?.data || error.message);
       return {
         success: false,
         provider: 'brightdata',
         method: 'scraping_browser',
         reviews: [],
-        error: error.message,
+        error: error.response?.data?.message || error.message,
       };
     }
   }
 
   /**
-   * Method 3: Use Bright Data's generic scrape endpoint (via MCP)
-   * This uses the scrape_as_markdown tool pattern
+   * Method 3: Use Web Unlocker with markdown format
+   * Simpler parsing, good for AI consumption
    */
   async scrapeAsMarkdown(options: ScrapeOptions): Promise<YelpScrapeResult> {
     const { url, maxReviews = 10 } = options;
@@ -455,20 +433,22 @@ export class BrightDataYelpScraper {
     try {
       console.log(`[BrightData] Scraping Yelp as markdown: ${url}`);
 
-      // Use the SERP API / Web Scraper endpoint
-      const response = await this.client.post('/serp/req', {
-        url,
-        format: 'markdown',
+      const response = await this.client.post('/request', {
+        zone: this.webUnlockerZone,
+        url: url,
+        format: 'raw',
+        data_format: 'markdown',
         country: 'us',
+      }, {
+        timeout: 120000,
       });
 
-      const markdown = response.data.content || response.data;
+      const markdown = typeof response.data === 'string' ? response.data : response.data.content || response.data.body || '';
 
-      // Parse markdown for review information
-      // This is a simpler format but may have less structure
+      console.log(`[BrightData] Got markdown: ${markdown.length} chars`);
+
       const reviews: YelpReview[] = [];
 
-      // Extract review blocks from markdown
       const reviewBlocks = markdown.split(/#{2,3}\s+Review/i);
 
       for (let i = 1; i < reviewBlocks.length && reviews.length < maxReviews; i++) {

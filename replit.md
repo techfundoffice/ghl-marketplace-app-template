@@ -3,8 +3,8 @@
 ## Overview
 This is a GoHighLevel (GHL) Marketplace App template that demonstrates how to build an integrated application with the GHL API. The project includes both backend API functionality and a Vue.js frontend interface with a professional dashboard, settings pages, and a Yelp Scraper for building a database of competitor reviewers.
 
-**Current Status**: Fully configured and running on Replit with Dashboard, Settings, Yelp Scraper, and Reviewers Database pages
-**Last Updated**: December 17, 2025
+**Current Status**: Fully configured and running on Replit with Dashboard, Settings (GHL-themed), Yelp Scraper, and Reviewers Database pages
+**Last Updated**: December 19, 2025
 
 ## Project Architecture
 
@@ -73,10 +73,11 @@ The Reviewers Database page (`src/ui/src/views/ReviewersDatabase.vue`) displays:
 
 ### Frontend Routes (Vue Router - HTML5 History Mode)
 - `/` - Dashboard (main landing page)
+- `/settings` - Settings page with dark navy GHL-themed sidebar
+- `/settings/help-ghl-api` - Embedded GHL API documentation
+- `/settings/*` - 22 nested routes for each settings section (My Profile, Company, Team, Billing, etc.)
 - `/yelp-scraper` - Yelp Scraper page for finding competitors and enriching consumer data
 - `/reviewers` - Reviewers Database showing all scraped reviewers with enrichment status
-- `/settings` - Settings page with sidebar navigation
-- `/settings/*` - 25 nested routes for each settings section
 
 ### Backend API Routes
 - `/authorize-handler` - Handles GHL OAuth authorization

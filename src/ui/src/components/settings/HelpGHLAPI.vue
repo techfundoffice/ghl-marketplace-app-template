@@ -1,7 +1,7 @@
 <template>
   <div class="help-ghl-api">
     <iframe 
-      src="https://marketplace.gohighlevel.com/docs/Authorization/authorization_doc"
+      src="https://marketplace.gohighlevel.com/docs/"
       frameborder="0"
       allowfullscreen
     ></iframe>
